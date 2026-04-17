@@ -1,0 +1,5 @@
+aiogram
+motor
+aiohttp
+pillow
+python-dotenv
