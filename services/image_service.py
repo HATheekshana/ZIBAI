@@ -27,8 +27,8 @@ def render_image_with_text(bg_image: Image.Image, character_image: Image.Image, 
 
     draw = ImageDraw.Draw(bg_image)
     try:
-        font_name = ImageFont.truetype("ARIALBD 1.TTF", 80)
-        font_stars = ImageFont.truetype("Arial-Unicode-MS.ttf", 60)
+        font_name = ImageFont.truetype("assets/fonts/ARIALBD 1.TTF", 80)
+        font_stars = ImageFont.truetype("assets/fonts/Arial-Unicode-MS.ttf", 60)
     except:
         font_name = ImageFont.load_default()
         font_stars = ImageFont.load_default()
