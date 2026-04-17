@@ -1,9 +1,8 @@
 import io
 import random
-
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.types import BufferedInputFile, FSInputFile
+from aiogram.types import BufferedInputFile, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
 
 from services.image_service import combine_images
@@ -13,14 +12,42 @@ from database.mongo import users_col
 from data.characters import characters5, characters4, weapons3, rare
 
 router = Router()
-
+ITEMS_PER_PAGE = 10
 CURRENT_RATE_UP_KEY = "flins"
 CURRENT_RATE_UP_NAME = characters5.get(CURRENT_RATE_UP_KEY, "Flins")
+def get_rarity(name):
+    clean_name = name.strip()
+    if clean_name in characters5.values():
+        return 5
+    elif clean_name in characters4.values():
+        return 4
+    elif clean_name in rare.values():
+        return 6
+    else:
+        return 3
+@router.message(Command("stats"))
+async def show_stats(message: types.Message):
+    user_id = str(message.from_user.id)
 
+    user = await users_col.find_one({"user_id": user_id})
+    if not user:
+        user = {"user_id": user_id, "pity": 0, "count4": 0, "total_wishes": 0 , "wish_count":200}
+        await users_col.insert_one(user)
+    wish_count = user["wish_count"]
+    twishes = user["total_wishes"]
+    pity = user["pity"]
+    count4 = user["count4"]
+    guaranteed = "✅ Yes" if user.get("is_guaranteed", False) else "❌ No"
 
-# =========================
-# 🔟 TEN WISH
-# =========================
+    await message.reply(
+        f"Stats for {message.from_user.first_name}:\n"
+        f"Total wishes: {twishes}\n"
+        f"Wishes: {wish_count}\n"
+        f"🔥 Guaranteed: {guaranteed}\n"
+        f"Current 5★ Pity: {pity}\n"
+        f"Current 4★ Pity: {count4}"
+    )
+
 @router.message(Command("wish10"))
 async def wish_cmd_10(message: types.Message):
     user_id = str(message.from_user.id)
@@ -351,3 +378,93 @@ async def wish_cmd(message: types.Message):
         BufferedInputFile(buf.read(), "wish.png"),
         caption=f"{text} {tag}"
     )
+@router.message(Command("collection"))
+async def show_collection(message: types.Message):
+    user_id = str(message.from_user.id)
+    user = await users_col.find_one({"user_id": user_id})
+
+    if not user or "collection" not in user or not user["collection"]:
+        await message.reply("Your collection is empty!\nUse /wish or /wish10 to find characters.")
+        return
+
+    chars = user["collection"]
+    sorted_chars = sorted(
+        chars.items(),
+        key=lambda x: (get_rarity(x[0]), x[1]),
+        reverse=True
+    )
+
+    text, keyboard = build_collection_page(
+        sorted_chars,
+        0,
+        message.from_user.first_name,
+        user_id
+    )
+
+    await message.reply(text, reply_markup=keyboard, parse_mode="Markdown")
+def build_collection_page(sorted_chars, page, first_name, user_id):
+    start = page * ITEMS_PER_PAGE
+    end = start + ITEMS_PER_PAGE
+    items = sorted_chars[start:end]
+
+    response = f"𑣲 {first_name}'s Characters\n"
+    response += "──── ⋆⋅☆⋅⋆ ────\n\n"
+
+    for name, count in items:
+        num = count - 1
+        constellation = "C6+" if num > 6 else f"C{num}"
+        rarity = get_rarity(name)
+        stars = "✨" if rarity == 6 else "★" * rarity
+        response += f"{stars} {name} — {constellation}\n"
+
+    total_pages = (len(sorted_chars) - 1) // ITEMS_PER_PAGE
+    buttons = []
+
+    if page > 0:
+        buttons.append(
+            InlineKeyboardButton(text="Back", callback_data=f"col_{page-1}_{user_id}")
+        )
+
+    if page < total_pages:
+        buttons.append(
+            InlineKeyboardButton(text="Next", callback_data=f"col_{page+1}_{user_id}")
+        )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+    return response, keyboard
+async def add_to_collection(user_id, char_name):
+    await users_col.update_one(
+        {"user_id": user_id},
+        {"$inc": {f"collection.{char_name}": 1}}
+    )
+
+@dp.callback_query(lambda c: c.data.startswith("col_"))
+async def change_collection_page(callback: types.CallbackQuery):
+    data_parts = callback.data.split("_")
+    page = int(data_parts[1])
+    owner_id = data_parts[2]
+    clicker_id = str(callback.from_user.id)
+
+    if clicker_id != owner_id:
+        await callback.answer("This is not your collection menu!", show_alert=True)
+        return
+
+    user = await users_col.find_one({"user_id": owner_id})
+    if not user:
+        return
+
+    chars = user["collection"]
+    sorted_chars = sorted(
+        chars.items(),
+        key=lambda x: (get_rarity(x[0]), x[1]),
+        reverse=True
+    )
+
+    text, keyboard = build_collection_page(
+        sorted_chars,
+        page,
+        callback.from_user.first_name,
+        owner_id
+    )
+
+    await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
