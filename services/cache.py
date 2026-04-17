@@ -1,30 +1,27 @@
-import aiohttp
 from PIL import Image
 from io import BytesIO
-from functools import lru_cache
+import requests
 
-session = None
+def get_cached_image(url: str):
+    r = requests.get(url, timeout=10)
 
-async def init_cache():
-    global session
-    session = aiohttp.ClientSession()
+    # ❗ Must be success
+    if r.status_code != 200:
+        raise ValueError(f"Bad response: {r.status_code}")
 
-@lru_cache(maxsize=300)
-def _memory_cache(url: str):
-    return None  # placeholder only
+    content_type = r.headers.get("Content-Type", "")
 
-async def get_cached_image(url: str):
-    global session
+    # ❗ Must be image
+    if "image" not in content_type:
+        raise ValueError(f"Not image response: {content_type}")
 
-    # memory hit (fast path)
-    cached = _memory_cache(url)
-    if cached:
-        return cached.copy()
+    data = r.content
 
-    async with session.get(url) as r:
-        data = await r.read()
-        img = Image.open(BytesIO(data)).convert("RGBA")
-        _memory_cache.cache_clear()
-        _memory_cache.cache_info()
-        _memory_cache(url)  # store key
-        return img.copy()
+    # ❗ prevent empty/corrupt
+    if len(data) < 500:
+        raise ValueError("Image too small or corrupted")
+
+    try:
+        return Image.open(BytesIO(data)).convert("RGBA")
+    except Exception:
+        raise ValueError("Invalid image format received")
