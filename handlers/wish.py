@@ -1,20 +1,26 @@
 from aiogram import Router
+from aiogram.filters import Command
 from aiogram.types import Message
+from io import BytesIO
+
 from services.wish_logic import wish_single, wish_ten
 from services.image_service import combine_images
-from io import BytesIO
 
 router = Router()
 
 
-@router.message(commands=["wish"])
+@router.message(Command("wish"))
 async def wish_cmd(message: Message):
 
     res = await wish_single(message.from_user.id)
 
+    if res.get("error"):
+        await message.answer(res["error"])
+        return
+
     img = await combine_images(
         res["image"],
-        res["image"],  # SAME KEY SYSTEM
+        res["image"],
         res["name"],
         res["rarity"]
     )
@@ -26,7 +32,7 @@ async def wish_cmd(message: Message):
     await message.answer_photo(buf, caption=res["text"])
 
 
-@router.message(commands=["wish10"])
+@router.message(Command("wish10"))
 async def wish10_cmd(message: Message):
 
     res = await wish_ten(message.from_user.id)
