@@ -1,0 +1,2 @@
+# ZIBAI
+Genshin Helper Bot
