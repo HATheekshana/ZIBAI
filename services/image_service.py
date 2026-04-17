@@ -5,13 +5,11 @@ import logging
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
-# Storage for images on your EC2 to avoid re-downloading
 CACHE_DIR = "cache_assets"
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR)
 
 async def get_image_obj(url_or_path):
-    """Downloads image once and saves to disk cache."""
     if not isinstance(url_or_path, str) or not url_or_path.startswith("http"):
         return Image.open(url_or_path).convert("RGBA")
 
@@ -22,15 +20,18 @@ async def get_image_obj(url_or_path):
         return Image.open(local_path).convert("RGBA")
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(url_or_path, timeout=15) as resp:
-            if resp.status == 200:
-                content = await resp.read()
-                img = Image.open(io.BytesIO(content)).convert("RGBA")
-                img.save(local_path) 
-                return img
-            else:
-                logging.error(f"Download failed for {url_or_path}")
-                return Image.new("RGBA", (1280, 720), (30, 30, 30))
+        try:
+            async with session.get(url_or_path, timeout=10) as resp:
+                if resp.status == 200:
+                    content = await resp.read()
+                    img = Image.open(io.BytesIO(content)).convert("RGBA")
+                    img.save(local_path)
+                    return img
+                else:
+                    logging.error(f"Image 404: {url_or_path}")
+                    return Image.new("RGBA", (1280, 720), (45, 20, 84))
+        except Exception as e:
+            return Image.new("RGBA", (1280, 720), (45, 20, 84))
 
 def render_logic(bg, char, name, rarity):
     bg_img = bg.copy()
@@ -42,13 +43,12 @@ def render_logic(bg, char, name, rarity):
 
     draw = ImageDraw.Draw(bg_img)
     try:
-        # Standard Ubuntu font path
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 70)
     except:
         font = ImageFont.load_default()
 
     stars = "★" * rarity if isinstance(rarity, int) else str(rarity)
-    draw.text((62, bg_img.height - 152), name, font=font, fill=(0,0,0)) # Shadow
+    draw.text((62, bg_img.height - 152), name, font=font, fill=(0,0,0)) 
     draw.text((60, bg_img.height - 150), name, font=font, fill=(255,255,255))
     draw.text((60, bg_img.height - 70), stars, font=font, fill=(255, 215, 0))
     return bg_img
