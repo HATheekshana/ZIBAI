@@ -42,18 +42,12 @@ def render_image(bg, char, name, rarity):
     return bg
 
 async def combine_images(char_url, bg_url, name, rarity):
+
+    bg = await get_cached_image(bg_url)
+    char = await get_cached_image(char_url)
+
     loop = asyncio.get_event_loop()
 
-    # CACHE LOAD (NO HTTP HERE)
-    bg = await loop.run_in_executor(
-        None, lambda: get_cached_image(bg_url)
-    )
-
-    char = await loop.run_in_executor(
-        None, lambda: get_cached_image(char_url)
-    )
-
-    # RENDER IN THREAD (important for VPS stability)
     result = await loop.run_in_executor(
         None,
         render_image,
