@@ -10,7 +10,7 @@ from services.image_service import combine_images
 from database.mongo import users_col
 
 # IMPORT YOUR DATA
-from assets.characters import characters5, characters4, weapons3, rare
+from data.characters import characters5, characters4, weapons3, rare
 
 router = Router()
 
