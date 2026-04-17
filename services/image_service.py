@@ -1,60 +1,88 @@
-import os
+import random
 import io
 import asyncio
 import logging
-import aiohttp
 from PIL import Image, ImageDraw, ImageFont
+from aiogram.types import BufferedInputFile
+import aiohttp
 
-CACHE_DIR = "cache_assets"
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
+from data.characters import weapons3, characters4, characters5, rare
 
-async def get_image_obj(url_or_path):
-    if not isinstance(url_or_path, str) or not url_or_path.startswith("http"):
-        return Image.open(url_or_path).convert("RGBA")
-
-    filename = url_or_path.split("/")[-1]
-    local_path = os.path.join(CACHE_DIR, filename)
-
-    if os.path.exists(local_path):
-        return Image.open(local_path).convert("RGBA")
-
+async def download_image_async(url: str, timeout: int = 10) -> Image.Image:
+    """Async download image from URL using aiohttp"""
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url_or_path, timeout=10) as resp:
-                if resp.status == 200:
-                    content = await resp.read()
-                    img = Image.open(io.BytesIO(content)).convert("RGBA")
-                    img.save(local_path)
-                    return img
-                else:
-                    logging.error(f"Image 404: {url_or_path}")
-                    return Image.new("RGBA", (1280, 720), (45, 20, 84))
-        except Exception as e:
-            return Image.new("RGBA", (1280, 720), (45, 20, 84))
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+            if response.status != 200:
+                raise ValueError(f"Download Failed: {response.status} for {url}")
+            content = await response.read()
+            return Image.open(io.BytesIO(content)).convert("RGBA")
 
-def render_logic(bg, char, name, rarity):
-    bg_img = bg.copy()
-    scale = bg_img.height / char.height
-    char_resized = char.resize((int(char.width * scale), bg_img.height), Image.Resampling.LANCZOS)
-    
-    x = (bg_img.width - char_resized.width) // 2
-    bg_img.paste(char_resized, (x, 0), char_resized)
+def render_image_with_text(bg_image: Image.Image, character_image: Image.Image, display_name: str, rarity) -> Image.Image:
+    """CPU-intensive image rendering (runs in thread executor)"""
+    scale = bg_image.height / character_image.height
+    new_size = (int(character_image.width * scale), bg_image.height)
+    character_image = character_image.resize(new_size, Image.Resampling.LANCZOS)
+    x_offset = (bg_image.width - character_image.width) // 2
+    bg_image.paste(character_image, (x_offset, 0), character_image)
 
-    draw = ImageDraw.Draw(bg_img)
+    draw = ImageDraw.Draw(bg_image)
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 70)
+        font_name = ImageFont.truetype("ARIALBD 1.TTF", 80)
+        font_stars = ImageFont.truetype("Arial-Unicode-MS.ttf", 60)
     except:
-        font = ImageFont.load_default()
+        font_name = ImageFont.load_default()
+        font_stars = ImageFont.load_default()
 
-    stars = "★" * rarity if isinstance(rarity, int) else str(rarity)
-    draw.text((62, bg_img.height - 152), name, font=font, fill=(0,0,0)) 
-    draw.text((60, bg_img.height - 150), name, font=font, fill=(255,255,255))
-    draw.text((60, bg_img.height - 70), stars, font=font, fill=(255, 215, 0))
-    return bg_img
+    if isinstance(rarity, int):
+        stars_text = "★" * rarity
+    else:
+        stars_text = str(rarity)
+
+    margin_right = 50
+    margin_bottom = 40
+    line_spacing = 5
+
+    bbox_n = draw.textbbox((0, 0), display_name, font=font_name)
+    nw, nh = bbox_n[2] - bbox_n[0], bbox_n[3] - bbox_n[1]
+
+    bbox_s = draw.textbbox((0, 0), stars_text, font=font_stars)
+    sw, sh = bbox_s[2] - bbox_s[0], bbox_s[3] - bbox_s[1]
+
+    nx = bg_image.width - nw - margin_right
+    ny = bg_image.height - nh - sh - margin_bottom - line_spacing
+
+    sx = bg_image.width - sw - margin_right
+    sy = bg_image.height - sh - margin_bottom
+
+    draw.text((nx+2, ny+2), display_name, font=font_name, fill=(0, 0, 0, 150))
+    draw.text((sx+2, sy+2), stars_text, font=font_stars, fill=(0, 0, 0, 150))
+
+    draw.text((nx, ny), display_name, font=font_name, fill=(255, 255, 255))
+    draw.text((sx, sy), stars_text, font=font_stars, fill=(255, 204, 0))
+
+    return bg_image
 
 async def combine_images(cha_path, bg_path, display_name, rarity):
-    loop = asyncio.get_event_loop()
-    bg = await get_image_obj(bg_path)
-    char = await get_image_obj(cha_path)
-    return await loop.run_in_executor(None, render_logic, bg, char, display_name, rarity)
+    """Async image combination with non-blocking HTTP and threading for CPU work"""
+    try:
+        loop = asyncio.get_event_loop()
+
+        if isinstance(bg_path, str) and bg_path.startswith("http"):
+            background = await download_image_async(bg_path)
+        else:
+            background = await loop.run_in_executor(None, lambda: Image.open(bg_path).convert("RGBA"))
+
+        if hasattr(cha_path, 'path'):
+            character = await loop.run_in_executor(None, lambda: Image.open(cha_path.path).convert("RGBA"))
+        elif isinstance(cha_path, str) and cha_path.startswith("http"):
+            character = await download_image_async(cha_path)
+        else:
+            character = await loop.run_in_executor(None, lambda: Image.open(cha_path).convert("RGBA"))
+
+        result = await loop.run_in_executor(None, render_image_with_text, background, character, display_name, rarity)
+        return result
+
+    except Exception as e:
+        logging.error(f"Image Error: {e}")
+        return Image.new("RGBA", (1280, 720), (45, 20, 84, 255))
+
