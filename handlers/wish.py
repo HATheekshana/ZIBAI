@@ -438,7 +438,7 @@ async def add_to_collection(user_id, char_name):
         {"$inc": {f"collection.{char_name}": 1}}
     )
 
-@dp.callback_query(lambda c: c.data.startswith("col_"))
+@router.callback_query(lambda c: c.data.startswith("col_"))
 async def change_collection_page(callback: types.CallbackQuery):
     data_parts = callback.data.split("_")
     page = int(data_parts[1])
