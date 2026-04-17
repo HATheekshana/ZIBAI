@@ -2,7 +2,7 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from handlers import wish
-from services.cache import get_cached_image, init_cache
+from services.cache import get_cached_image
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
