@@ -4,7 +4,8 @@ from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.exceptions import TelegramBadRequest
-
+import datetime
+from datetime import timedelta
 from services.image_service import combine_images
 from database.mongo import users_col
 
@@ -468,3 +469,177 @@ async def change_collection_page(callback: types.CallbackQuery):
     )
 
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="Markdown")
+@router.message(Command("gamble"))
+async def gamble_wishes(message: types.Message, command: CommandObject):
+    if message.chat.type != "private":
+        return await message.reply("⚠️ <b>Gambling is restricted to Private DMs!</b>", parse_mode="HTML")
+
+    user_id = str(message.from_user.id)
+
+    if not command.args:
+        return await message.answer("🎲 <b>Double or Nothing</b>\nUsage: <code>/gamble &lt;amount&gt;</code>", parse_mode="HTML")
+
+    try:
+        bet = int(command.args)
+    except ValueError:
+        return await message.answer("Please enter a valid number.")
+
+    user = await users_col.find_one({"user_id": user_id})
+    current_balance = user.get("wish_count", 0) if user else 0
+
+    if bet <= 0 or current_balance < bet:
+        return await message.answer(f"Invalid bet. Balance: {current_balance}")
+
+    if current_balance < 2000:
+        win_chance = 0.50
+    elif current_balance < 2500:
+        win_chance = 0.45
+    else:
+        win_chance = 0.40
+
+    win = random.random() < win_chance
+
+    if win:
+        new_balance = current_balance + bet
+        msg = f"🏆 <b>WINNER!</b>\nResult: +{bet} Wishes"
+        emoji = "💰"
+    else:
+        new_balance = current_balance - bet
+        msg = f"💀 <b>BUSTED!</b>\nResult: -{bet} Wishes"
+        emoji = "📉"
+
+    await users_col.update_one({"user_id": user_id}, {"$set": {"wish_count": new_balance}})
+
+    await message.answer(
+        f"🎲 <b>Gamble Result</b>\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+        f"{emoji} {msg}\n\n"
+        f"👛 <b>New Balance:</b> {new_balance} Wishes",
+        parse_mode="HTML"
+    )   
+@router.message(Command("share"))
+async def share_wishes(message: types.Message):
+    args = message.text.split()
+    sender = message.from_user
+    sender_name = sender.first_name
+    target_id = None
+    target_name = "User"
+    amount = 0
+
+    if message.reply_to_message:
+        target_user = message.reply_to_message.from_user
+        target_id = str(target_user.id)
+        target_name = target_user.first_name
+
+        if len(args) < 2:
+            return await message.reply("Usage: Reply to someone with <code>/share [amount]</code>", parse_mode="HTML")
+        try:
+            amount = int(args[1])
+        except ValueError:
+            return await message.reply("<b>Amount must be a number!</b>", parse_mode="HTML")
+    else:
+        if len(args) < 3:
+            return await message.reply("Usage: <code>/share [user_id] [amount]</code>", parse_mode="HTML")
+        target_id = args[1]
+        try:
+            amount = int(args[2])
+        except ValueError:
+            return await message.reply("<b>Amount must be a number!</b>", parse_mode="HTML")
+
+    if amount <= 0:
+        return await message.reply("<b>You must share at least 1 wish!</b>", parse_mode="HTML")
+
+    if str(sender.id) == target_id:
+        return await message.reply("<b>Nice try!</b> You cannot share wishes with yourself.", parse_mode="HTML")
+
+    sender_data = await users_col.find_one({"user_id": str(sender.id)})
+    current_balance = sender_data.get("wish_count", 0) if sender_data else 0
+
+    if current_balance < amount:
+        return await message.reply(f"<b>Insufficient Balance!</b>\nYou have <b>{current_balance}</b> wishes.", parse_mode="HTML")
+
+    await users_col.update_one({"user_id": str(sender.id)}, {"$inc": {"wish_count": -amount}})
+    await users_col.update_one({"user_id": target_id}, {"$inc": {"wish_count": amount}}, upsert=True)
+
+    await message.reply(
+        f"<b>Transaction Successful!</b>✅\n"
+        f"<b>{sender_name}</b> sent 💫 <b>{amount}</b> wishes to <b>{target_name}</b>.",
+        parse_mode="HTML"
+    )
+
+    try:
+        await message.bot.send_message(
+            chat_id=target_id,
+            text=f"<b>You received a gift!</b>\n"
+                 f"<b>{sender_name}</b> sent you <b>{amount}</b> wishes!\n"
+                 f"Check <code>/stats</code>",
+            parse_mode="HTML"
+        )
+    except Exception:
+        pass 
+@router.message(Command("daily"))
+async def daily_wish(message: types.Message):
+    user_id = str(message.from_user.id)
+    user = await users_col.find_one({"user_id": user_id})
+    now = datetime.utcnow()
+
+    streak = 1
+    streak_u = 1
+    wishes_to_add = 5
+    bonus_msg = ""
+
+    if user and "last_daily_wish" in user:
+        last = user["last_daily_wish"]
+
+        if now - last < timedelta(days=1):
+            remaining = timedelta(days=1) - (now - last)
+            hours = remaining.seconds // 3600
+            minutes = (remaining.seconds % 3600) // 60
+            s_val = user.get("daily_streak", 0)
+            u_val = user.get("streak_new", 0)
+            return await message.answer(
+                f"⏳ Already claimed!\n"
+                f"Come back in: <b>{hours}h {minutes}m</b>\n"
+                f"Current Streak: <b>{u_val} Days</b>",
+                parse_mode="HTML"
+            )
+
+        if now - last > timedelta(days=2):
+            streak = 1
+            streak_u = 1
+        else:
+            streak = user.get("daily_streak", 0) + 1
+            streak_u = user.get("streak_new", 0) + 1
+
+    if streak == 7:
+        wishes_to_add += 10
+        bonus_msg = "\n🔥 <b>WEEKLY BONUS: +10 Wishes!</b>"
+    elif streak == 14:
+        wishes_to_add += 20
+        bonus_msg = "\n🔥 <b>FORTNIGHT BONUS: +20 Wishes!</b>"
+    elif streak == 21:
+        wishes_to_add += 30
+        bonus_msg = "\n🔥 <b>ULTIMATE BONUS: +30 Wishes!</b>\n<i>(Milestone streak reset!)</i>"
+        streak = 0
+
+    await users_col.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "last_daily_wish": now,
+                "daily_streak": streak,
+                "streak_new": streak_u,
+                "notification_sent": False
+            },
+            "$inc": {"wish_count": wishes_to_add}
+        },
+        upsert=True
+    )
+
+    await message.answer(
+        f"<b>Daily Reward Claimed! 🎁</b>\n"
+        f"⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n"
+        f"Added: <b>+{wishes_to_add} Wishes</b> 🎫\n"
+        f"Current Streak: <b>{streak_u} Days</b> 🔥"
+        f"{bonus_msg}",
+        parse_mode="HTML"
+    )
