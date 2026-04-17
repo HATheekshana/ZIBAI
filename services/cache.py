@@ -1,13 +1,5 @@
-from PIL import Image
-
+# Optional: Can be used to keep reference of loaded objects in RAM
 CACHE = {}
 
-def preload_assets(asset_map: dict):
-    """
-    asset_map = {url: local_path}
-    """
-    for key, path in asset_map.items():
-        CACHE[key] = Image.open(path).convert("RGBA")
-
-def get_cached_image(key: str):
-    return CACHE[key]
+def get_cached(key):
+    return CACHE.get(key)

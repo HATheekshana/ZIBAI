@@ -5,112 +5,51 @@ from data.characters import characters5, characters4, weapons3
 CURRENT_RATE_UP_NAME = "Raiden Shogun"
 CURRENT_RATE_UP_KEY = "RaidenShogun"
 
-async def get_user(user_id):
+async def wish_single(user_id: str):
     user = await users_col.find_one({"user_id": str(user_id)})
-
     if not user:
-        user = {
-            "user_id": str(user_id),
-            "pity": 0,
-            "count4": 0,
-            "wish_count": 200,
-            "collection": {},
-            "is_guaranteed": False
-        }
+        user = {"user_id": str(user_id), "pity": 0, "count4": 0, "wish_count": 200, "collection": {}, "is_guaranteed": False}
         await users_col.insert_one(user)
 
-    return user
-
-
-async def wish_single(user_id):
-    user = await get_user(user_id)
-
-    pity = user["pity"]
-    count4 = user["count4"]
-    wish_count = user["wish_count"]
-    guaranteed = user.get("is_guaranteed", False)
-
-    if wish_count < 1:
+    if user.get("wish_count", 0) < 1:
         return {"error": "Not enough wishes"}
 
-    is_5 = pity >= 89 or random.randint(1, 1000) < 7
-    is_4 = count4 >= 9
+    pity, count4 = user.get("pity", 0) + 1, user.get("count4", 0) + 1
+    guaranteed = user.get("is_guaranteed", False)
+    
+    res = {"rarity": 3, "name": "", "key": "", "msg": ""}
 
-    name = ""
-    rarity = 3
-    file_key = ""
-
-    if is_5:
-        pity = 0
-        count4 += 1
-
-        if guaranteed:
-            file_key = CURRENT_RATE_UP_KEY
-            name = CURRENT_RATE_UP_NAME
-            guaranteed = False
-        elif random.randint(1, 100) <= 50:
-            file_key = CURRENT_RATE_UP_KEY
-            name = CURRENT_RATE_UP_NAME
+    if pity >= 90 or random.randint(1, 1000) <= 6:
+        res["rarity"], pity = 5, 0
+        if guaranteed or random.random() <= 0.5:
+            res["key"], res["name"], guaranteed = CURRENT_RATE_UP_KEY, CURRENT_RATE_UP_NAME, False
+            res["msg"] = "(RATE-UP WIN!)"
         else:
-            file_key = random.choice(list(characters5.keys()))
-            name = characters5[file_key]
-            guaranteed = True
-
-        rarity = 5
-
-    elif is_4:
-        file_key = random.choice(list(characters4.keys()))
-        name = characters4[file_key]
-        rarity = 4
-        count4 = 0
-
+            res["key"] = random.choice(list(characters5.keys()))
+            res["name"], guaranteed = characters5[res["key"]], True
+            res["msg"] = "(50/50 Lost...)"
+    elif count4 >= 10 or random.randint(1, 100) <= 10:
+        res["rarity"], count4, res["key"] = 4, 0, random.choice(list(characters4.keys()))
+        res["name"] = characters4[res["key"]]
     else:
-        file_key = random.choice(list(weapons3.keys()))
-        name = weapons3[file_key]
-        rarity = 3
-        count4 += 1
-        pity += 1
+        res["key"] = random.choice(list(weapons3.keys()))
+        res["name"] = weapons3[res["key"]]
 
-    wish_count -= 1
+    # Refund Logic
+    wish_count = user["wish_count"] - 1
+    owned = user.get("collection", {}).get(res["name"], 0)
+    if owned >= 7:
+        wish_count += (2 if res["rarity"] == 5 else 1)
 
-    await users_col.update_one(
-        {"user_id": str(user_id)},
-        {"$set": {
-            "pity": pity,
-            "count4": count4,
-            "wish_count": wish_count,
-            "is_guaranteed": guaranteed
-        }}
-    )
+    await users_col.update_one({"user_id": str(user_id)}, {
+        "$set": {"pity": pity, "count4": count4, "wish_count": wish_count, "is_guaranteed": guaranteed},
+        "$inc": {f"collection.{res['name']}": 1}
+    })
 
-    img_url = f"{file_key}"  # THIS WILL MAP TO CACHE KEY
+    # Build URLs
+    base = "https://raw.githubusercontent.com/Mantan21/Genshin-Impact-Wish-Simulator/master/src/images/characters/splash-art/"
+    if res["rarity"] == 5: url = f"{base}5star/{res['key']}.webp"
+    elif res["rarity"] == 4: url = f"{base}4star/{res['key']}.webp"
+    else: url = f"https://raw.githubusercontent.com/FrenzyYum/GenshinWishingBot/master/assets/images/{res['key']}.webp"
 
-    return {
-        "error": None,
-        "name": name,
-        "rarity": rarity,
-        "image": img_url,
-        "text": f"꩜ {name} ★{rarity}"
-    }
-
-
-async def wish_ten(user_id):
-    results = []
-    best = None
-
-    for _ in range(10):
-        res = await wish_single(user_id)
-        if res["error"]:
-            continue
-
-        results.append(res["text"])
-
-        if not best or res["rarity"] > best["rarity"]:
-            best = res
-
-    return {
-        "name": best["name"],
-        "rarity": best["rarity"],
-        "image": best["image"],
-        "text": "\n".join(results)
-    }
+    return {"name": res["name"], "rarity": res["rarity"], "url": url, "msg": res["msg"]}

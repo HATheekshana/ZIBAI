@@ -5,11 +5,10 @@ from handlers.wish import router
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
 dp.include_router(router)
 
 async def main():
-    print("Bot started")
+    print("Bot is live on EC2...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
