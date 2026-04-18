@@ -16,7 +16,7 @@ ELEMENT_COLORS = {
     "Physical": "#FFFFFF"
 }
 
-with open("targets.json", "r", encoding="utf-8") as f:
+with open("assets/json/targets.json", "r", encoding="utf-8") as f:
     TARGETS = json.load(f)
 
 LABELS = ['HP', 'ATK', 'DEF', 'EM', 'Crit DMG', 'Crit Rate', 'ER', 'Elem DMG']
