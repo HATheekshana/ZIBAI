@@ -72,12 +72,12 @@ async def create_genshin_profile(uid):
 
     user_info_enka = await get_enkadata(uid)
 
-    base = Image.open("PROFILE-BACKGROUND.png").convert("RGBA")
-    frame = Image.open("AVATAR.png").convert("RGBA")
-    banner_frame = Image.open("BANNER_FRAME.png").convert("RGBA")
+    base = Image.open("assets/images/profile/PROFILE-BACKGROUND.png").convert("RGBA")
+    frame = Image.open("assets/images/profile/AVATAR.png").convert("RGBA")
+    banner_frame = Image.open("assets/images/profile/BANNER_FRAME.png").convert("RGBA")
 
-    mask = ImageOps.invert(Image.open("AVATAR_MASKA.png").convert("L"))
-    char_mask = ImageOps.invert(Image.open("CHARTER_MASK.png").convert("L"))
+    mask = ImageOps.invert(Image.open("assets/images/profile/AVATAR_MASKA.png").convert("L"))
+    char_mask = ImageOps.invert(Image.open("assets/images/profile/CHARTER_MASK.png").convert("L"))
 
     async with aiohttp.ClientSession() as session:
         namecard_url = await get_namecard_image_url(user_info_enka['nameCardId'])
@@ -115,7 +115,7 @@ async def create_genshin_profile(uid):
                     clean_char = Image.new("RGBA", char_mask.size, (0, 0, 0, 0))
                     clean_char.paste(charimage, (0, 0), char_mask)
                     
-                    bg_file = "CHARTER_5.png" if char['rarity'] == 5 else "CHARTER_4.png"
+                    bg_file = "assets/images/profile/CHARTER_5.png" if char['rarity'] == 5 else "assets/images/profile/CHARTER_4.png"
                     char_bg = Image.open(bg_file).convert("RGBA")
                     
                     return char, clean_char, char_bg
@@ -141,9 +141,9 @@ async def create_genshin_profile(uid):
         """CPU-intensive: Text drawing and PNG encoding"""
         draw = ImageDraw.Draw(base)
         try:
-            f_big = ImageFont.truetype("Genshin_Impact.ttf", 23)
-            f_small = ImageFont.truetype("Genshin_Impact.ttf", 20)
-            f_xsmall = ImageFont.truetype("Genshin_Impact.ttf", 18)
+            f_big = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 23)
+            f_small = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 20)
+            f_xsmall = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 18)
         except:
             f_big = f_small = f_xsmall = ImageFont.load_default()
 
