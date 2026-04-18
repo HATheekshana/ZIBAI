@@ -82,7 +82,7 @@ async def abyss_info_command(message: types.Message):
 
     uid = str(user_data["genshin_uid"]).strip()
 
-    status_msg = await message.answer("⏳ Fetching Abyss data from HoYoLAB...")
+    status_msg = await message.reply("⏳ Fetching Abyss data from HoYoLAB...")
 
     try:
         abyss = await get_abyss_data(uid)
