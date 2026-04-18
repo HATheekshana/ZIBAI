@@ -28,13 +28,13 @@ except FileNotFoundError:
     print("Warning: new.json not found")
     TEXT = {}
 try:
-    with open("data.json", "r", encoding="utf-8") as f:
+    with open("assets/json/data.json", "r", encoding="utf-8") as f:
         NAMECARD_DATA = json.load(f)
 except FileNotFoundError:
     print("Warning: data.json not found")
     NAMECARD_DATA = {}
 try:
-    with open("char.json", "r", encoding="utf-8") as f:
+    with open("assets/json/char.json", "r", encoding="utf-8") as f:
         CHAR_MAP = json.load(f)
 except FileNotFoundError:
     print("Warning: char.json not found")
