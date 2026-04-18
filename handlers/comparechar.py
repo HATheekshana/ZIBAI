@@ -67,32 +67,34 @@ async def handle_comp(callback: types.CallbackQuery):
     if callback.from_user.id != owner_id:
         return await callback.answer("This menu isn't for you!", show_alert=True)
 
-    await callback.answer()
+    await callback.answer("Generating...")
 
-    try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=FSInputFile("assets/Loading_Screen_Startup.webp"),
-                caption="<b>Creating comparison card... Please wait.</b>",
-                parse_mode="HTML"
-            )
-        )
-    except Exception:
-        pass
+    # 1. Use a temporary loading message instead of editing existing menu
+    loading_msg = await callback.message.answer_photo(
+        photo=FSInputFile("assets/Loading_Screen_Startup.webp"),
+        caption="<b>Creating comparison card... Please wait.</b>",
+        parse_mode="HTML"
+    )
+    
+    # Optionally delete the menu so they don't spam clicks
+    await callback.message.delete()
 
+    # 2. Process image
     img_bytes = await compare_characters(int(u1), int(u2), int(cid))
 
     if img_bytes is None:
-        await callback.message.edit_caption(
-            caption="<b>❌ Error:</b> Failed to generate the comparison. This usually happens if Enka.network is lagging or profile details are hidden.",
+        return await loading_msg.edit_caption(
+            caption="<b>❌ Error:</b> Failed to generate the comparison.",
             parse_mode="HTML"
         )
-        return
 
-    await callback.message.delete()
+    # 3. Send final result
     await callback.message.answer_photo(
         photo=types.BufferedInputFile(img_bytes.read(), filename="comparison.png"),
         caption=f"<b>Comparison Complete!</b>",
         parse_mode="HTML",
         reply_to_message_id=orig_msg_id
     )
+    
+    # 4. Clean up loading message
+    await loading_msg.delete()

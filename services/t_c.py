@@ -49,7 +49,7 @@ async def fetch_ui_image(session, url):
     return None
 
 async def fetch_build_assets(uid1, uid2, char_id):
-    with open('avatars.json', 'r') as f:
+    with open('assets/json/avatars.json', 'r') as f:
         avatars_db = json.load(f)
 
     async with aiohttp.ClientSession() as session:
