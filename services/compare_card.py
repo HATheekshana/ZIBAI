@@ -257,8 +257,8 @@ async def compare_characters(uid, uid2, char_id):
     ui_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(ui_layer)
 
-    frame = Image.open("assets/images/AVATAR.png").convert("RGBA")
-    mask_avatar = ImageOps.invert(Image.open("assets/images/AVATAR_MASK.png").convert("L"))
+    frame = Image.open("assets/images/profile/AVATAR.png").convert("RGBA")
+    mask_avatar = ImageOps.invert(Image.open("assets/images/profile/AVATAR_MASK.png").convert("L"))
 
     tl_coords, tr_coords = [5, 5, 780, 220], [1070, 5, 1845, 220]
     box_w, box_h = 775, 215
