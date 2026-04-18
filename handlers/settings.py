@@ -32,13 +32,13 @@ async def get_user_card_settings(user_id):
         return {"graph_on": True, "disabled_graphs": [], "stickers": {}}
     return user["card_settings"]
 
-router3.message(Command("settings"), F.chat.type == "private")
+@router3.message(Command("settings"), F.chat.type == "private")
 async def cmd_settings(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.button(text="🎴 Character Card", callback_data="set_card_menu")
     await message.answer("⚙️ <b>Bot Settings</b>", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data == "set_card_menu")
+@router3.callback_query(F.data == "set_card_menu")
 async def card_settings_menu(callback: types.CallbackQuery):
     settings = await get_user_card_settings(callback.from_user.id)
 
@@ -57,7 +57,7 @@ async def card_settings_menu(callback: types.CallbackQuery):
     await callback.message.edit_text("🎴 <b>Character Card Settings</b>\n\nTurning Global Graph OFF will hide radar charts for all characters.",
                                     parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data == "toggle_graph_stat")
+@router3.callback_query(F.data == "toggle_graph_stat")
 async def toggle_global_graph(callback: types.CallbackQuery):
     settings = await get_user_card_settings(callback.from_user.id)
     new_stat = not settings.get("graph_on", True)
@@ -70,13 +70,13 @@ async def toggle_global_graph(callback: types.CallbackQuery):
     await callback.answer(f"Global Graph: {'ON' if new_stat else 'OFF'}")
     await card_settings_menu(callback)
 
-router3.callback_query(F.data == "main_settings_menu")
+@router3.callback_query(F.data == "main_settings_menu")
 async def main_settings_menu(callback: types.CallbackQuery):
     builder = InlineKeyboardBuilder()
     builder.button(text="🎴 Character Card", callback_data="set_card_menu")
     await callback.message.edit_text("⚙️ <b>Bot Settings</b>", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data == "reset_all_graphs")
+@router3.callback_query(F.data == "reset_all_graphs")
 async def reset_all_graphs(callback: types.CallbackQuery):
     await users_col.update_one(
         {"user_id": str(callback.from_user.id)},
@@ -85,7 +85,7 @@ async def reset_all_graphs(callback: types.CallbackQuery):
     await callback.answer("All character-specific graphs reset to ON.")
     await card_settings_menu(callback)
 
-router3.callback_query(F.data == "setup_sticker_start")
+@router3.callback_query(F.data == "setup_sticker_start")
 async def start_sticker_process(callback: types.CallbackQuery):
     user_data = await users_col.find_one({"user_id": str(callback.from_user.id)})
     if not user_data or "genshin_uid" not in user_data:
@@ -109,7 +109,7 @@ async def start_sticker_process(callback: types.CallbackQuery):
     builder.row(types.InlineKeyboardButton(text="⬅️ Back", callback_data="set_card_menu"))
     await callback.message.edit_text("✨ <b>Select a character to customize:</b>", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data == "setup_splash_start")
+@router3.callback_query(F.data == "setup_splash_start")
 async def start_splash_process(callback: types.CallbackQuery):
     user_data = await users_col.find_one({"user_id": str(callback.from_user.id)})
     if not user_data or "genshin_uid" not in user_data:
@@ -133,7 +133,7 @@ async def start_splash_process(callback: types.CallbackQuery):
     builder.row(types.InlineKeyboardButton(text="⬅️ Back", callback_data="set_card_menu"))
     await callback.message.edit_text("🌅 <b>Select a character for custom splash art:</b>", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(lambda c: c.data and c.data.startswith("pick_char_") and not c.data.startswith("pick_char_splash_"))
+@router3.callback_query(lambda c: c.data and c.data.startswith("pick_char_") and not c.data.startswith("pick_char_splash_"))
 async def process_character_pick(callback: types.CallbackQuery, state: FSMContext):
     if state is not None:
         await state.clear()
@@ -155,7 +155,7 @@ async def process_character_pick(callback: types.CallbackQuery, state: FSMContex
 
     await callback.message.edit_text(f"Settings for <b>{char_name}</b>:", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data.startswith("pick_char_splash_"))
+@router3.callback_query(F.data.startswith("pick_char_splash_"))
 async def process_character_pick_splash(callback: types.CallbackQuery, state: FSMContext):
     if state is not None:
         await state.clear()
@@ -177,7 +177,7 @@ async def process_character_pick_splash(callback: types.CallbackQuery, state: FS
 
     await callback.message.edit_text(f"🌅 <b>Custom Splash Art: {char_name}</b>", parse_mode="HTML", reply_markup=builder.as_markup())
 
-router3.callback_query(F.data.startswith("toggle_char_graph_"))
+@router3.callback_query(F.data.startswith("toggle_char_graph_"))
 async def toggle_specific_graph(callback: types.CallbackQuery):
     char_id = callback.data.split("_")[3]
     settings = await get_user_card_settings(callback.from_user.id)
@@ -198,7 +198,7 @@ async def toggle_specific_graph(callback: types.CallbackQuery):
     await callback.answer(msg)
     await process_character_pick(callback, None)
 
-router3.callback_query(F.data.startswith("set_sticker_"))
+@router3.callback_query(F.data.startswith("set_sticker_"))
 async def start_sticker_upload_prompt(callback: types.CallbackQuery, state: FSMContext):
     char_id = callback.data.split("_")[2]
     char_name = CHARACTER_MAP.get(char_id, {}).get("name", f"ID: {char_id}")
@@ -213,7 +213,7 @@ async def start_sticker_upload_prompt(callback: types.CallbackQuery, state: FSMC
         reply_markup=InlineKeyboardBuilder().button(text="❌ Cancel", callback_data=f"pick_char_{char_id}").as_markup()
     )
 
-router3.callback_query(F.data.startswith("set_splash_"))
+@router3.callback_query(F.data.startswith("set_splash_"))
 async def start_splash_upload_prompt(callback: types.CallbackQuery, state: FSMContext):
     char_id = callback.data.split("_")[2]
     char_name = CHARACTER_MAP.get(char_id, {}).get("name", f"ID: {char_id}")
@@ -228,7 +228,7 @@ async def start_splash_upload_prompt(callback: types.CallbackQuery, state: FSMCo
         reply_markup=InlineKeyboardBuilder().button(text="❌ Cancel", callback_data=f"pick_char_splash_{char_id}").as_markup()
     )
 
-router3.message(CardSettings.waiting_for_sticker)
+@router3.message(CardSettings.waiting_for_sticker)
 async def handle_sticker_upload(message: types.Message, state: FSMContext):
     data = await state.get_data()
     char_id_str = str(data.get("selected_char_id"))
@@ -305,7 +305,7 @@ async def handle_sticker_upload(message: types.Message, state: FSMContext):
         print(f"Sticker Process Error: {e}")
         await message.answer(f"❌ An error occurred while processing the image: {e}")
 
-router3.message(CardSettings.waiting_for_splash)
+@router3.message(CardSettings.waiting_for_splash)
 async def handle_splash_upload(message: types.Message, state: FSMContext):
     data = await state.get_data()
     char_id_str = str(data.get("selected_char_id"))
@@ -381,7 +381,7 @@ async def handle_splash_upload(message: types.Message, state: FSMContext):
         print(f"Splash Process Error: {e}")
         await message.answer(f"❌ An error occurred while processing the image: {e}")
 
-router3.callback_query(F.data.startswith("reset_splash_"))
+@router3.callback_query(F.data.startswith("reset_splash_"))
 async def reset_splash_art(callback: types.CallbackQuery):
     char_id = callback.data.split("_")[2]
     user_id = callback.from_user.id
@@ -402,7 +402,7 @@ async def reset_splash_art(callback: types.CallbackQuery):
     callback.data = f"pick_char_splash_{char_id}"
     await process_character_pick_splash(callback, None)
 
-router3.message(Command("ban_sticker"), F.from_user.id == ADMIN_ID)
+@router3.message(Command("ban_sticker"), F.from_user.id == ADMIN_ID)
 async def ban_sticker_command(message: types.Message):
     args = message.text.split()
 
@@ -446,7 +446,7 @@ async def ban_sticker_command(message: types.Message):
 
     await message.answer("\n".join(status_report), parse_mode="HTML")
 
-router3.message(Command("ban_splash"), F.from_user.id == ADMIN_ID)
+@router3.message(Command("ban_splash"), F.from_user.id == ADMIN_ID)
 async def ban_splash_command(message: types.Message):
     args = message.text.split()
 
