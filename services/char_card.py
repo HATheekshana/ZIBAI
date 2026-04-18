@@ -7,8 +7,8 @@ from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont, ImageChops, 
 from motor.motor_asyncio import AsyncIOMotorClient
 from .graph import get_complete_radar_module
 from database.mongo import users_col
-from char_t_c import fetch_build_assets, draw_build_column
-from artifacts import draw_horizontal_artifacts
+from .char_t_c import fetch_build_assets, draw_build_column
+from .artifacts import draw_horizontal_artifacts
 
 W_STAT_ICONS = {
     "FIGHT_PROP_BASE_ATTACK": "assets/icons/atk.png",
