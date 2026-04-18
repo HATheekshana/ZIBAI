@@ -180,10 +180,10 @@ async def compare_characters(uid, uid2, char_id):
         print("------------------------------------------")
         return None
     try:
-        font = ImageFont.truetype("Genshin_Impact.ttf", 23)
-        font_big = ImageFont.truetype("Genshin_Impact.ttf", 28)
-        font_small = ImageFont.truetype("Genshin_Impact.ttf", 20)
-        font_xsmall = ImageFont.truetype("Genshin_Impact.ttf", 16)
+        font = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 23)
+        font_big = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 28)
+        font_small = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 20)
+        font_xsmall = ImageFont.truetype("assets/fonts/Genshin_Impact.ttf", 16)
 
     except:
         font = ImageFont.load_default()
