@@ -11,7 +11,7 @@ from services.char_card import characters_card
 from services.profile_card import create_genshin_profile
 router2 = Router()
 try:
-    with open("char.json", "r", encoding="utf-8") as f:
+    with open("assets/json/char.json", "r", encoding="utf-8") as f:
         CHARACTER_MAP = json.load(f)
 except FileNotFoundError:
     print("Warning: char.json not found")
