@@ -5,7 +5,7 @@ import aiohttp
 from database.mongo import users_col
 
 router4 = Router()
-router4.message(Command("login"))
+
 async def fetch_enka_data(uid: str):
     url = f"https://enka.network/api/uid/{uid}"
     async with aiohttp.ClientSession() as session:
@@ -13,7 +13,7 @@ async def fetch_enka_data(uid: str):
             if response.status == 200:
                 return await response.json()
             return None
-router4.message(Command("login"))
+@router4.message(Command("login"))
 async def login_uid(message: types.Message):
     args = message.text.split()
     if len(args) < 2:
@@ -36,7 +36,7 @@ async def login_uid(message: types.Message):
         upsert=True
     )
     await status_msg.edit_text(f"✅ <b>Login Successful! <code>{uid}</code></b>\n👤 <b>Player:</b> {player.get('name')} (AR {player.get('level')})", parse_mode="HTML")
-router4.message(Command("logout"))
+@router4.message(Command("logout"))
 async def logout_uid(message: types.Message):
     user_id = str(message.from_user.id)
     user_data = await users_col.find_one({"user_id": user_id})
