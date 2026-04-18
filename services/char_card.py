@@ -5,7 +5,7 @@ import os
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont, ImageChops, ImageEnhance
 from motor.motor_asyncio import AsyncIOMotorClient
-from graph import get_complete_radar_module
+from .graph import get_complete_radar_module
 from database.mongo import users_col
 from char_t_c import fetch_build_assets, draw_build_column
 from artifacts import draw_horizontal_artifacts
