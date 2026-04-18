@@ -396,7 +396,21 @@ async def compare_characters(uid, uid2, char_id):
         val2 = fmt.format(stats_them.get(key, 0)) if stats_them else "0"
         draw.text((v2_x + (val_w // 2), curr_y + (row_height//2)), val2, font=font, fill=(255, 255, 255), anchor="mm")
     loop = asyncio.get_event_loop()
+    async with aiohttp.ClientSession() as session:
+        try:
+            me_char_obj = next((c for c in me.get('avatarInfoList', []) if str(c['avatarId']) == str(char_id)), None)
+            them_char_obj = next((c for c in them.get('avatarInfoList', []) if str(c['avatarId']) == str(char_id)), None)
+        except (StopIteration, AttributeError):
+            print("Character not found in one of the showcases!")
+            return buffer
 
+        await draw_all_artifacts(
+            session=session,
+            background=ui_layer,
+            me_char_data=me_char_obj,
+            them_char_data=them_char_obj,
+            font=font_small
+        )
     def render_comparison():
         """CPU-intensive: draw_build_column, star icons, and JPEG encoding"""
         draw_build_column(background, 795, them_data, t_icons, c_icons)
@@ -417,21 +431,7 @@ async def compare_characters(uid, uid2, char_id):
 
     buffer = await loop.run_in_executor(None, render_comparison)
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            me_char_obj = next((c for c in me.get('avatarInfoList', []) if str(c['avatarId']) == str(char_id)), None)
-            them_char_obj = next((c for c in them.get('avatarInfoList', []) if str(c['avatarId']) == str(char_id)), None)
-        except (StopIteration, AttributeError):
-            print("Character not found in one of the showcases!")
-            return buffer
-
-        await draw_all_artifacts(
-            session=session,
-            background=ui_layer,
-            me_char_data=me_char_obj,
-            them_char_data=them_char_obj,
-            font=font_small
-        )
+    
 
     return buffer
 
