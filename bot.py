@@ -1,5 +1,6 @@
 import asyncio
-
+from handlers.settings import router3
+from handlers.login import router4
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from handlers.wish import router
@@ -14,7 +15,8 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 dp.include_router(router)
 dp.include_router(router2)
-
+dp.include_router(router3)
+dp.include_router(router4)
 
 async def main():
     print("Bot is live on EC2...")
