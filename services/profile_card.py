@@ -14,9 +14,6 @@ COOKIES = {
     "ltuid_v2": os.getenv("LTUID_V2"),
     "ltoken_v2": os.getenv("LTOKEN_V2")
 }
-cookie_token = os.getenv("COOKIE_TOKEN_V2")
-if cookie_token:
-    COOKIES["cookie_token_v2"] = cookie_token
 client = genshin.Client(COOKIES)
 client.region = genshin.Region.OVERSEAS
 
