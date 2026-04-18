@@ -68,14 +68,14 @@ async def fetch_build_assets(uid,char_id):
 
 def draw_build_column(canvas, start_x, data, t_icons, c_icons):
     draw = ImageDraw.Draw(canvas)
-    font_path = "asstests/fonts/Genshin_Impact.ttf"
+    font_path = "assets/fonts/Genshin_Impact.ttf"
     f_lvl = ImageFont.truetype(font_path, 18)
 
-    entry_bg = Image.open("asstests/talents/bg.png").convert("RGBA")
-    ten_bg = Image.open("asstests/talents/10.png").convert("RGBA")
-    con_bg = Image.open("asstests/constant/const_adapt.png").convert("RGBA")
-    lock_bg = Image.open("asstests/constant/closed/CLOSED.png").convert("RGBA")
-    mask = Image.open("asstests/constant/maska_constant.png").convert("L")
+    entry_bg = Image.open("assets/talents/bg.png").convert("RGBA")
+    ten_bg = Image.open("assets/talents/10.png").convert("RGBA")
+    con_bg = Image.open("assets/constant/const_adapt.png").convert("RGBA")
+    lock_bg = Image.open("assets/constant/closed/CLOSED.png").convert("RGBA")
+    mask = Image.open("assets/constant/maska_constant.png").convert("L")
 
     talent_x = start_x + 30
     talent_y_base = 330

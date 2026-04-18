@@ -20,8 +20,8 @@ EQUIP_ORDER = ["EQUIP_BRACER", "EQUIP_NECKLACE", "EQUIP_SHOES", "EQUIP_RING", "E
 async def draw_artifact_card(session, base_image, x, y, art_data, font):
     draw = ImageDraw.Draw(base_image)
     CARD_W, CARD_H = 330, 200
-    ICONS_PATH = "asstests/icons/"
-    STARS_PATH = "asstests/icons/stars/"
+    ICONS_PATH = "assets/icons/"
+    STARS_PATH = "assets/icons/stars/"
 
     draw.rounded_rectangle([x, y, x + CARD_W, y + CARD_H], radius=12, fill=(0, 0, 0, 80), outline=(255, 255, 255, 40))
 
