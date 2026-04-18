@@ -1,9 +1,9 @@
 
 from aiogram import Router, types
 from aiogram.filters import Command
-from motor import aiohttp
+import aiohttp
 from database.mongo import users_col
-router2 = Router()
+
 router4 = Router()
 router4.message(Command("login"))
 async def fetch_enka_data(uid: str):
@@ -13,6 +13,7 @@ async def fetch_enka_data(uid: str):
             if response.status == 200:
                 return await response.json()
             return None
+router4.message(Command("login"))
 async def login_uid(message: types.Message):
     args = message.text.split()
     if len(args) < 2:
