@@ -3,7 +3,7 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
 from handlers.wish import router
-
+from handlers.characters import router2
 from services.daily import check_individual_dailies
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -13,6 +13,7 @@ from pytz import timezone
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 dp.include_router(router)
+dp.include_router(router2)
 
 
 async def main():
