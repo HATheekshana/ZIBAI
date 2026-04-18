@@ -7,6 +7,7 @@ from handlers.wish import router
 from handlers.characters import router2
 from services.daily import check_individual_dailies
 from handlers.info import router5
+from handlers.comparechar import router6
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pytz import timezone
 
@@ -18,6 +19,7 @@ dp.include_router(router2)
 dp.include_router(router3)
 dp.include_router(router4)
 dp.include_router(router5)
+dp.include_router(router6)
 
 async def main():
     print("Bot is live on EC2...")
