@@ -42,7 +42,7 @@ async def show_comparison_menu(event, u1, u2, owner_id, is_callback=False):
         return await event.message.edit_text(error_text) if is_callback else await event.reply(error_text)
 
     builder = InlineKeyboardBuilder()
-    with open('char.json', 'r') as f:
+    with open('assets/json/char.json', 'r') as f:
         char_map = json.load(f)
     orig_msg_id = event.message.message_id if is_callback else event.message_id
     for cid in list(common)[:18]:
@@ -72,7 +72,7 @@ async def handle_comp(callback: types.CallbackQuery):
     try:
         await callback.message.edit_media(
             media=InputMediaPhoto(
-                media=FSInputFile("asstests/Loading_Screen_Startup.webp"),
+                media=FSInputFile("assets/Loading_Screen_Startup.webp"),
                 caption="<b>Creating comparison card... Please wait.</b>",
                 parse_mode="HTML"
             )
