@@ -1,5 +1,5 @@
 import traceback
-from get_genshindata import get_player_full_data
+from .get_genshindata import get_player_full_data
 from PIL import Image, ImageDraw, ImageOps, ImageFilter, ImageFont
 import asyncio
 import aiohttp
