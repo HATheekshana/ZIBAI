@@ -14,9 +14,16 @@ async def get_abyss_data(uid: str):
         "ltuid_v2": os.getenv("LTUID_V2"),
         "ltoken_v2": os.getenv("LTOKEN_V2")
     }
-    # Use 'async with' for better memory management
-    async with genshin.Client(cookies, region=genshin.Region.OVERSEAS) as client:
+    
+    # Initialize the client normally
+    client = genshin.Client(cookies, region=genshin.Region.OVERSEAS)
+    
+    try:
+        # Use the method directly on the client
         return await client.get_spiral_abyss(uid)
+    finally:
+        # Manually close the session to avoid memory leaks
+        await client.close()
 async def format_abyss_info(abyss_data):
     season = abyss_data.season
     res = f"⸸ SPIRAL ABYSS S{season} ⸸\n"
