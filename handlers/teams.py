@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from database.mongo import users_col
-from services.get_genshindata import get_enkadata
+from services.get_enkadata import get_enkadata
 
 router_team = Router()
 
