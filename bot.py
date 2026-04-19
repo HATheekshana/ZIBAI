@@ -3,7 +3,7 @@ from handlers.settings import router3
 from handlers.login import router4
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
-from handlers import router_bc
+from handlers.broadcast import router_bc
 from handlers.wish import router
 from handlers.characters import router2
 from services.daily import check_individual_dailies
