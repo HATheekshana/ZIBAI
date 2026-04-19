@@ -6,7 +6,12 @@ from aiogram import Router, types
 from aiogram.filters import Command
 
 from database.mongo import users_col
+from dotenv import load_dotenv
 
+load_dotenv()
+ADMIN_VAL = os.getenv("ADMIN_ID")
+
+ADMIN_ID = int(ADMIN_VAL)
 # =========================
 # 🔧 SETUP
 # =========================
@@ -107,3 +112,30 @@ async def abyss_info_command(message: types.Message):
         await status_msg.edit_text(
             f"❌ Error fetching Abyss data:\n{str(e)}"
         )
+from aiogram import Bot
+
+
+@router5.message(Command("info"))
+async def group_info(message: types.Message, bot: Bot):
+    if message.from_user.id != ADMIN_ID:
+        await message.answer("🚫 **Access Denied**")
+        return
+    args = message.text.split()
+
+    if len(args) < 2:
+        return await message.reply("Usage: /info <group_id>")
+
+    group_id = args[1]
+
+    try:
+        chat = await bot.get_chat(group_id)
+
+        await message.reply(
+            f"🏷 Group Info\n\n"
+            f"Name: {chat.title}\n"
+            f"ID: {chat.id}\n"
+            f"Type: {chat.type}"
+        )
+
+    except Exception as e:
+        await message.reply(f"❌ Failed to fetch group info.\nError: {e}")
