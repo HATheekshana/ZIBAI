@@ -258,45 +258,55 @@ async def show(callback: types.CallbackQuery):
     await callback.answer()
 
     # =========================
-    # 1. DELETE OLD TEAM MENU FIRST
+    # SAVE ORIGINAL MESSAGE (IMPORTANT)
     # =========================
+    origin_msg = callback.message
+
     try:
-        await callback.message.delete()
+        await origin_msg.delete()
     except:
         pass
 
     # =========================
-    # 2. SEND LOADING SCREEN
+    # LOADING SCREEN (REPLY STYLE)
     # =========================
-    loading_msg = await callback.message.answer_photo(
+    loading_msg = await callback.bot.send_photo(
+        chat_id=callback.message.chat.id,
         photo=FSInputFile("assets/images/Loading_Screen_Startup.webp"),
-        caption="This can take a lot of time, don’t spam.⏳ "
+        caption="⏳ This can take a lot of time, don’t spam.",
+        reply_to_message_id=callback.message.message_id
     )
 
     # =========================
-    # 3. GENERATE TEAM CARD
+    # GENERATE TEAM
     # =========================
     try:
         img = await team_card(uid, team["chars"])
-    except Exception:
-        await loading_msg.edit_caption("Failed to generate team card.")
+    except:
+        await loading_msg.edit_caption("❌ Failed to generate team card.")
         return
 
     if not img:
-        await loading_msg.edit_caption("Failed to generate team card.")
+        await loading_msg.edit_caption("❌ Failed to generate team card.")
         return
 
-    # =========================
-    # 4. SEND FINAL RESULT
-    # =========================
     photo = BufferedInputFile(img.getvalue(), filename="team.png")
 
-    await loading_msg.delete()
+    # =========================
+    # DELETE LOADING
+    # =========================
+    
 
-    await callback.message.answer_photo(
+    # =========================
+    # FINAL IMAGE AS REPLY TO /teams MESSAGE
+    # =========================
+    await callback.bot.send_photo(
+        chat_id=callback.message.chat.id,
         photo=photo,
-        caption=f"Team {idx + 1}"
+        caption=f"Team {idx + 1}",
+        reply_to_message_id=callback.message.message_id
     )
+    await loading_msg.delete()
 @router_team.callback_query(F.data.startswith("delete:"))
 async def delete(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
