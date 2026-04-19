@@ -240,6 +240,8 @@ async def view(callback: types.CallbackQuery):
 # =========================
 # SHOW TEAM CARD
 # =========================
+from aiogram.types import FSInputFile, BufferedInputFile
+
 @router_team.callback_query(F.data.startswith("show:"))
 async def show(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
@@ -256,26 +258,40 @@ async def show(callback: types.CallbackQuery):
     await callback.answer()
 
     # =========================
-    # ONLY LOADING SCREEN (NO TEXT BEFORE THIS)
+    # 1. DELETE OLD TEAM MENU FIRST
     # =========================
-    loading = await callback.message.answer_photo(
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # =========================
+    # 2. SEND LOADING SCREEN
+    # =========================
+    loading_msg = await callback.message.answer_photo(
         photo=FSInputFile("assets/images/Loading_Screen_Startup.webp"),
-        caption="⏳ This can take a lot of time, don’t spam."
+        caption="This can take a lot of time, don’t spam.⏳ "
     )
 
+    # =========================
+    # 3. GENERATE TEAM CARD
+    # =========================
     try:
         img = await team_card(uid, team["chars"])
     except Exception:
-        await loading.edit_caption("❌ Failed to generate team card.")
+        await loading_msg.edit_caption("Failed to generate team card.")
         return
 
     if not img:
-        await loading.edit_caption("❌ Failed to generate team card.")
+        await loading_msg.edit_caption("Failed to generate team card.")
         return
 
+    # =========================
+    # 4. SEND FINAL RESULT
+    # =========================
     photo = BufferedInputFile(img.getvalue(), filename="team.png")
 
-    await loading.delete()
+    await loading_msg.delete()
 
     await callback.message.answer_photo(
         photo=photo,
