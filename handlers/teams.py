@@ -57,21 +57,21 @@ async def get_showcase(user_id: str):
     user = await users_col.find_one({"user_id": user_id})
 
     if not user:
-        return None, "❌ User not found."
+        return None, "User not found."
 
     uid = get_uid(user)
 
     if not uid:
-        return None, "❌ Please /login <uid> first."
+        return None, "Please /login <uid> first."
 
     try:
         data = await get_enkadata(uid)
         showcase = data.get("showAvatarInfoList", [])
     except Exception as e:
-        return None, f"❌ Enka error: {e}"
+        return None, f"Enka error: {e}"
 
     if not showcase:
-        return None, "❌ No characters found in showcase."
+        return None, "No characters found in showcase."
 
     return showcase, None
 
@@ -88,12 +88,12 @@ async def teams_menu(message: types.Message):
 
     if teams:
         for i in range(len(teams)):
-            kb.button(text=f"👥 Team {i+1}", callback_data=f"view:{i}")
+            kb.button(text=f"Team {i+1}", callback_data=f"view:{i}")
 
     kb.button(text="➕ Create Team", callback_data="add_team")
     kb.adjust(2)
 
-    text = "🏠 Your Teams:" if teams else "⚠ No teams yet. Create one!"
+    text = "Your Teams:" if teams else "⚠ No teams yet. Create one!"
 
     await message.reply(text, reply_markup=kb.as_markup())
 
@@ -134,12 +134,12 @@ async def send_select(message, showcase, selected):
         mark = "🟢" if cid in selected else "⚪"
         kb.button(text=f"{mark} {name}", callback_data=f"pick:{cid}")
 
-    kb.button(text="✅ Done", callback_data="team_done")
-    kb.button(text="❌ Remove", callback_data="team_remove")
+    kb.button(text="Done", callback_data="team_done")
+    kb.button(text="Remove", callback_data="team_remove")
     kb.adjust(2)
 
     await message.edit_text(
-        f"🎯 Select up to 4 characters\nSelected: {len(selected)}/4",
+        f"Select up to 4 characters\nSelected: {len(selected)}/4",
         reply_markup=kb.as_markup()
     )
 
@@ -202,7 +202,7 @@ async def done(callback: types.CallbackQuery, state: FSMContext):
     )
 
     await state.clear()
-    await callback.message.edit_text("✅ Team saved!")
+    await callback.message.edit_text("Team saved!")
 
 
 # =========================
@@ -226,13 +226,13 @@ async def view(callback: types.CallbackQuery):
     ]
 
     kb = InlineKeyboardBuilder()
-    kb.button(text="📊 Show Team", callback_data=f"show:{idx}")
-    kb.button(text="🗑 Delete", callback_data=f"delete:{idx}")
-    kb.button(text="⬅ Back", callback_data="back")
+    kb.button(text="Show Team", callback_data=f"show:{idx}")
+    kb.button(text="Delete", callback_data=f"delete:{idx}")
+    kb.button(text="Back", callback_data="back")
     kb.adjust(1)
 
     await callback.message.edit_text(
-        f"🏆 Team {idx+1}\n\n👥 Characters:\n" + "\n".join(names),
+        f"Team {idx+1}\n\n Characters:\n" + "+".join(names),
         reply_markup=kb.as_markup()
     )
 
@@ -253,41 +253,33 @@ async def show(callback: types.CallbackQuery):
     uid = get_uid(user)
     team = teams[idx]
 
-    # =========================
-    # 1. SEND LOADING SCREEN FIRST
-    # =========================
-    loading_img = FSInputFile("assets/images/Loading_Screen_Startup.webp")
-
-    loading_msg = await callback.message.answer_photo(
-        photo=loading_img,
-        caption="⏳ This can take a lot of time, don’t spam."
-    )
-
     await callback.answer()
 
     # =========================
-    # 2. GENERATE TEAM CARD
+    # ONLY LOADING SCREEN (NO TEXT BEFORE THIS)
     # =========================
+    loading = await callback.message.answer_photo(
+        photo=FSInputFile("assets/images/Loading_Screen_Startup.webp"),
+        caption="⏳ This can take a lot of time, don’t spam."
+    )
+
     try:
         img = await team_card(uid, team["chars"])
-    except Exception as e:
-        await loading_msg.edit_caption("❌ Failed to generate team card.")
+    except Exception:
+        await loading.edit_caption("❌ Failed to generate team card.")
         return
 
     if not img:
-        await loading_msg.edit_caption("❌ Failed to generate team card.")
+        await loading.edit_caption("❌ Failed to generate team card.")
         return
 
-    # =========================
-    # 3. SEND FINAL IMAGE
-    # =========================
     photo = BufferedInputFile(img.getvalue(), filename="team.png")
 
-    await loading_msg.delete()
+    await loading.delete()
 
     await callback.message.answer_photo(
         photo=photo,
-        caption=f"✨ Team {idx + 1}"
+        caption=f"Team {idx + 1}"
     )
 @router_team.callback_query(F.data.startswith("delete:"))
 async def delete(callback: types.CallbackQuery):
