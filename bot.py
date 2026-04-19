@@ -3,6 +3,7 @@ from handlers.settings import router3
 from handlers.login import router4
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
+from handlers import router_bc
 from handlers.wish import router
 from handlers.characters import router2
 from services.daily import check_individual_dailies
@@ -22,6 +23,7 @@ dp.include_router(router4)
 dp.include_router(router5)
 dp.include_router(router6)
 dp.include_router(router_team)
+dp.include_router(router_bc)
 
 async def main():
     print("Bot is live on EC2...")

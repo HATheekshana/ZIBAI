@@ -5,3 +5,4 @@ client = AsyncIOMotorClient(MONGO_URL)
 db = client["genshin_bot"]
 
 users_col = db["user_stats"]
+groups_col = db["groups"]

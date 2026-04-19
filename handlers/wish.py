@@ -14,8 +14,8 @@ from data.characters import characters5, characters4, weapons3, rare
 
 router = Router()
 ITEMS_PER_PAGE = 10
-CURRENT_RATE_UP_KEY = "flins"
-CURRENT_RATE_UP_NAME = characters5.get(CURRENT_RATE_UP_KEY, "Flins")
+CURRENT_RATE_UP_KEY = "raiden-shogun"
+CURRENT_RATE_UP_NAME = characters5.get(CURRENT_RATE_UP_KEY, "Raiden Shogun")
 def get_rarity(name):
     clean_name = name.strip()
     if clean_name in characters5.values():
@@ -186,7 +186,7 @@ async def wish_cmd_10(message: types.Message):
         elif is_rare:
             key = random.choice(list(rare.keys()))
             name = rare[key]
-            path = f"images/rare/{key}.webp"
+            path = f"assets/images/rare/{key}.webp"
 
             if best_score < 3:
                 splash_name = name
