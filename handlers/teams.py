@@ -1,3 +1,4 @@
+import json
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -8,6 +9,13 @@ from database.mongo import users_col
 from services.get_enkadata import get_enkadata
 
 router_team = Router()
+
+# =========================
+# Load character names
+# =========================
+with open("assets/json/char.json", "r", encoding="utf-8") as f:
+    CHARACTER_MAP = json.load(f)
+
 
 # =========================
 # FSM
@@ -40,7 +48,7 @@ async def ensure_user(user_id: str):
 
 
 # =========================
-# Get showcase from Enka (YOUR LOGIC)
+# Get showcase characters (YOUR LOGIC)
 # =========================
 async def get_showcase_chars(message: types.Message):
     user_data = await users_col.find_one({"user_id": str(message.from_user.id)})
@@ -55,30 +63,35 @@ async def get_showcase_chars(message: types.Message):
         showcase_items = user_info_enka.get("showAvatarInfoList", [])
     except Exception as e:
         print(f"Enka Fetch Error: {e}")
-        return None, "Failed to reach Enka.network. Try again later."
+        return None, "Failed to reach Enka.network."
 
     if not showcase_items:
-        return None, "No characters found!\nEnable 'Show Character Details' in your profile."
+        return None, "No characters found!\nEnable 'Show Character Details'."
 
-    char_ids = [c["avatarId"] for c in showcase_items]
-
-    return char_ids, None
+    return showcase_items, None
 
 
 # =========================
-# Character selection UI
+# Build selection UI
 # =========================
-async def send_char_select(message, chars, selected):
+async def send_char_select(message, showcase, selected):
     kb = InlineKeyboardBuilder()
 
-    for cid in chars:
+    for char in showcase:
+        cid = char.get("avatarId")
+        name = CHARACTER_MAP.get(str(cid), {}).get("name", str(cid))
+
         mark = "🟢" if cid in selected else "⚪"
-        kb.button(text=f"{mark} {cid}", callback_data=f"pick:{cid}")
+
+        kb.button(
+            text=f"{mark} {name}",
+            callback_data=f"pick:{cid}"
+        )
 
     kb.button(text="✅ Done", callback_data="team_done")
-    kb.button(text="❌ Remove Last", callback_data="team_remove")
+    kb.button(text="❌ Remove", callback_data="team_remove")
 
-    kb.adjust(3)
+    kb.adjust(2)
 
     text = "Select up to 4 characters:\n"
     text += f"\nSelected: {selected}"
@@ -87,7 +100,7 @@ async def send_char_select(message, chars, selected):
 
 
 # =========================
-# /teams
+# /teams command
 # =========================
 @router_team.message(Command("teams"))
 async def teams_menu(message: types.Message):
@@ -96,15 +109,14 @@ async def teams_menu(message: types.Message):
 
     kb = InlineKeyboardBuilder()
 
-    if teams:
-        for i, t in enumerate(teams):
-            kb.button(text=f"Team {i+1}", callback_data=f"team_view:{i}")
+    for i, t in enumerate(teams):
+        kb.button(text=f"Team {i+1}", callback_data=f"team_view:{i}")
 
     kb.button(text="➕", callback_data="team_add")
     kb.adjust(2)
 
     if not teams:
-        text = "You don't have any teams yet.\nClick ➕ to create one."
+        text = "No teams yet.\nPress ➕ to create one."
     else:
         text = "Your Teams:"
 
@@ -112,24 +124,23 @@ async def teams_menu(message: types.Message):
 
 
 # =========================
-# Add team
+# Start adding team
 # =========================
 @router_team.callback_query(F.data == "team_add")
 async def team_add(callback: types.CallbackQuery, state: FSMContext):
-    chars, error = await get_showcase_chars(callback.message)
+    showcase, error = await get_showcase_chars(callback.message)
 
     if error:
-        await callback.message.edit_text(error)
-        return
+        return await callback.message.edit_text(error)
 
     await state.set_state(TeamBuilder.selecting)
     await state.update_data(selected=[])
 
-    await send_char_select(callback.message, chars, [])
+    await send_char_select(callback.message, showcase, [])
 
 
 # =========================
-# Pick char
+# Pick character
 # =========================
 @router_team.callback_query(F.data.startswith("pick:"))
 async def pick_char(callback: types.CallbackQuery, state: FSMContext):
@@ -142,18 +153,17 @@ async def pick_char(callback: types.CallbackQuery, state: FSMContext):
         selected.remove(cid)
     else:
         if len(selected) >= 4:
-            await callback.answer("Max 4 characters!", show_alert=True)
-            return
+            return await callback.answer("Max 4 characters!", show_alert=True)
         selected.append(cid)
 
     await state.update_data(selected=selected)
 
-    chars, _ = await get_showcase_chars(callback.message)
-    await send_char_select(callback.message, chars, selected)
+    showcase, _ = await get_showcase_chars(callback.message)
+    await send_char_select(callback.message, showcase, selected)
 
 
 # =========================
-# Remove last
+# Remove last character
 # =========================
 @router_team.callback_query(F.data == "team_remove")
 async def remove_char(callback: types.CallbackQuery, state: FSMContext):
@@ -165,8 +175,8 @@ async def remove_char(callback: types.CallbackQuery, state: FSMContext):
 
     await state.update_data(selected=selected)
 
-    chars, _ = await get_showcase_chars(callback.message)
-    await send_char_select(callback.message, chars, selected)
+    showcase, _ = await get_showcase_chars(callback.message)
+    await send_char_select(callback.message, showcase, selected)
 
 
 # =========================
@@ -178,14 +188,13 @@ async def team_done(callback: types.CallbackQuery, state: FSMContext):
     selected = data.get("selected", [])
 
     if not selected:
-        await callback.answer("Pick at least 1 character!", show_alert=True)
-        return
+        return await callback.answer("Pick at least 1 character!", show_alert=True)
 
     user_id = str(callback.from_user.id)
 
     await users_col.update_one(
         {"user_id": user_id},
-        {"$push": {"teams": {"name": "Team", "chars": selected}}},
+        {"$push": {"teams": {"chars": selected}}},
         upsert=True
     )
 
@@ -204,8 +213,7 @@ async def team_view(callback: types.CallbackQuery):
     teams = user.get("teams", [])
 
     if index >= len(teams):
-        await callback.answer("Team not found", show_alert=True)
-        return
+        return await callback.answer("Team not found", show_alert=True)
 
     team = teams[index]
 
@@ -229,8 +237,7 @@ async def team_show(callback: types.CallbackQuery):
     user = await users_col.find_one({"user_id": str(callback.from_user.id)})
 
     if not user or "genshin_uid" not in user:
-        await callback.answer("Please /login first", show_alert=True)
-        return
+        return await callback.answer("Please /login first", show_alert=True)
 
     index = int(callback.data.split(":")[1])
     team = user["teams"][index]
@@ -266,7 +273,7 @@ async def team_delete(callback: types.CallbackQuery):
 
 
 # =========================
-# Back
+# Back button
 # =========================
 @router_team.callback_query(F.data == "teams_back")
 async def teams_back(callback: types.CallbackQuery):
