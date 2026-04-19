@@ -10,6 +10,7 @@ from handlers.info import router5
 from handlers.comparechar import router6
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pytz import timezone
+from handlers.teams import router_team
 
 
 bot = Bot(token=BOT_TOKEN)
@@ -20,6 +21,7 @@ dp.include_router(router3)
 dp.include_router(router4)
 dp.include_router(router5)
 dp.include_router(router6)
+dp.include_router(router_team)
 
 async def main():
     print("Bot is live on EC2...")
