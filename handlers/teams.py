@@ -4,59 +4,30 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import BufferedInputFile 
+from aiogram.types import BufferedInputFile
+from aiogram.types import FSInputFile
 from database.mongo import users_col
 from services.get_enkadata import get_enkadata
-from services.team_card import team_card   # IMPORTANT
+from services.team_card import team_card
 
 router_team = Router()
 
 # =========================
-# LOAD CHAR DATA
+# LOAD CHARACTER MAP
 # =========================
 with open("assets/json/char.json", "r", encoding="utf-8") as f:
     CHARACTER_MAP = json.load(f)
 
 
 # =========================
-# FSM
-# =========================
-class TeamBuilder(StatesGroup):
-    selecting = State()
-
-
-# =========================
-# GET SHOWCASE
-# =========================
-async def get_showcase(user_id: str):
-    user = await users_col.find_one({"user_id": user_id})
-
-    if not user or "genshin_uid" not in user:
-        return None, "❌ Please /login <uid> first."
-
-    uid = str(user["genshin_uid"]).strip()
-
-    try:
-        data = await get_enkadata(uid)
-        showcase = data.get("showAvatarInfoList", [])
-    except Exception as e:
-        return None, f"❌ Enka error: {e}"
-
-    if not showcase:
-        return None, "❌ No characters in showcase."
-
-    return showcase, None
-
-
-# =========================
-# ENSURE USER TEAM ARRAY
+# ENSURE USER EXISTS
 # =========================
 async def ensure_user(user_id: str):
     user = await users_col.find_one({"user_id": user_id})
 
     if not user:
-        await users_col.insert_one({"user_id": user_id, "teams": []})
-        return {"user_id": user_id, "teams": []}
+        user = {"user_id": user_id, "teams": []}
+        await users_col.insert_one(user)
 
     if "teams" not in user:
         await users_col.update_one(
@@ -69,31 +40,44 @@ async def ensure_user(user_id: str):
 
 
 # =========================
-# CHARACTER SELECT UI
+# GET UID (FIXED LOGIC)
 # =========================
-async def send_select(msg, showcase, selected):
-    kb = InlineKeyboardBuilder()
-
-    for c in showcase:
-        cid = c["avatarId"]
-        name = CHARACTER_MAP.get(str(cid), {}).get("name", str(cid))
-
-        mark = "🟢" if cid in selected else "⚪"
-
-        kb.button(text=f"{mark} {name}", callback_data=f"pick:{cid}")
-
-    kb.button(text="✅ Done", callback_data="team_done")
-    kb.button(text="❌ Remove", callback_data="team_remove")
-
-    kb.adjust(2)
-
-    text = f"Select up to 4 characters\nSelected: {len(selected)}/4"
-
-    await msg.edit_text(text, reply_markup=kb.as_markup())
+def get_uid(user):
+    return str(
+        user.get("genshin_uid")
+        or user.get("card_settings", {}).get("genshin_uid")
+        or ""
+    ).strip()
 
 
 # =========================
-# /TEAMS MENU
+# GET SHOWCASE
+# =========================
+async def get_showcase(user_id: str):
+    user = await users_col.find_one({"user_id": user_id})
+
+    if not user:
+        return None, "❌ User not found."
+
+    uid = get_uid(user)
+
+    if not uid:
+        return None, "❌ Please /login <uid> first."
+
+    try:
+        data = await get_enkadata(uid)
+        showcase = data.get("showAvatarInfoList", [])
+    except Exception as e:
+        return None, f"❌ Enka error: {e}"
+
+    if not showcase:
+        return None, "❌ No characters found in showcase."
+
+    return showcase, None
+
+
+# =========================
+# MENU
 # =========================
 @router_team.message(Command("teams"))
 async def teams_menu(message: types.Message):
@@ -104,14 +88,21 @@ async def teams_menu(message: types.Message):
 
     if teams:
         for i in range(len(teams)):
-            kb.button(text=f"Team {i+1}", callback_data=f"view:{i}")
+            kb.button(text=f"👥 Team {i+1}", callback_data=f"view:{i}")
 
     kb.button(text="➕ Create Team", callback_data="add_team")
     kb.adjust(2)
 
-    text = "Your Teams:" if teams else "No teams yet. Create one ➕"
+    text = "🏠 Your Teams:" if teams else "⚠ No teams yet. Create one!"
 
     await message.reply(text, reply_markup=kb.as_markup())
+
+
+# =========================
+# FSM
+# =========================
+class TeamBuilder(StatesGroup):
+    selecting = State()
 
 
 # =========================
@@ -131,7 +122,30 @@ async def add_team(callback: types.CallbackQuery, state: FSMContext):
 
 
 # =========================
-# PICK CHAR
+# SHOW SELECT UI
+# =========================
+async def send_select(message, showcase, selected):
+    kb = InlineKeyboardBuilder()
+
+    for c in showcase:
+        cid = int(c["avatarId"])
+        name = CHARACTER_MAP.get(str(cid), {}).get("name", str(cid))
+
+        mark = "🟢" if cid in selected else "⚪"
+        kb.button(text=f"{mark} {name}", callback_data=f"pick:{cid}")
+
+    kb.button(text="✅ Done", callback_data="team_done")
+    kb.button(text="❌ Remove", callback_data="team_remove")
+    kb.adjust(2)
+
+    await message.edit_text(
+        f"🎯 Select up to 4 characters\nSelected: {len(selected)}/4",
+        reply_markup=kb.as_markup()
+    )
+
+
+# =========================
+# PICK CHARACTER
 # =========================
 @router_team.callback_query(F.data.startswith("pick:"))
 async def pick(callback: types.CallbackQuery, state: FSMContext):
@@ -179,11 +193,12 @@ async def done(callback: types.CallbackQuery, state: FSMContext):
     selected = data.get("selected", [])
 
     if not selected:
-        return await callback.answer("Select at least 1 character", show_alert=True)
+        return await callback.answer("Pick at least 1 character!", show_alert=True)
 
     await users_col.update_one(
         {"user_id": str(callback.from_user.id)},
-        {"$push": {"teams": {"chars": selected}}}
+        {"$push": {"teams": {"chars": selected}}},
+        upsert=True
     )
 
     await state.clear()
@@ -191,7 +206,7 @@ async def done(callback: types.CallbackQuery, state: FSMContext):
 
 
 # =========================
-# VIEW TEAM
+# VIEW TEAM (FIXED NAMES)
 # =========================
 @router_team.callback_query(F.data.startswith("view:"))
 async def view(callback: types.CallbackQuery):
@@ -205,7 +220,7 @@ async def view(callback: types.CallbackQuery):
 
     team = teams[idx]
 
-    char_names = [
+    names = [
         CHARACTER_MAP.get(str(cid), {}).get("name", str(cid))
         for cid in team["chars"]
     ]
@@ -217,38 +232,63 @@ async def view(callback: types.CallbackQuery):
     kb.adjust(1)
 
     await callback.message.edit_text(
-        f"🏷 Team {idx+1}\n\n👥 Characters:\n" + "\n".join(char_names),
+        f"🏆 Team {idx+1}\n\n👥 Characters:\n" + "\n".join(names),
         reply_markup=kb.as_markup()
     )
 
 
-
-# Ensure this is imported
-
+# =========================
+# SHOW TEAM CARD
+# =========================
 @router_team.callback_query(F.data.startswith("show:"))
-async def show_team(callback: types.CallbackQuery):
+async def show(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
+
     user = await users_col.find_one({"user_id": str(callback.from_user.id)})
     teams = user.get("teams", [])
 
     if idx >= len(teams):
         return await callback.answer("Not found", show_alert=True)
 
+    uid = get_uid(user)
     team = teams[idx]
-    uid = str(user["genshin_uid"])
 
-    # This returns your BytesIO object
-    img_buffer = await team_card(uid, team["chars"])
+    # =========================
+    # 1. SEND LOADING SCREEN FIRST
+    # =========================
+    loading_img = FSInputFile("assets/images/Loading_Screen_Startup.webp")
 
-    if img_buffer:
-        # WRAP IT HERE: This is what aiogram 3.x expects
-        photo = BufferedInputFile(img_buffer.getvalue(), filename=f"team_{idx}.png")
-        
-        await callback.message.answer_photo(photo, caption=f"✨ Team {idx+1}")
-        await callback.answer()
-    else:
-        await callback.answer("❌ Failed to generate team card", show_alert=True)
+    loading_msg = await callback.message.answer_photo(
+        photo=loading_img,
+        caption="⏳ This can take a lot of time, don’t spam."
+    )
 
+    await callback.answer()
+
+    # =========================
+    # 2. GENERATE TEAM CARD
+    # =========================
+    try:
+        img = await team_card(uid, team["chars"])
+    except Exception as e:
+        await loading_msg.edit_caption("❌ Failed to generate team card.")
+        return
+
+    if not img:
+        await loading_msg.edit_caption("❌ Failed to generate team card.")
+        return
+
+    # =========================
+    # 3. SEND FINAL IMAGE
+    # =========================
+    photo = BufferedInputFile(img.getvalue(), filename="team.png")
+
+    await loading_msg.delete()
+
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=f"✨ Team {idx + 1}"
+    )
 @router_team.callback_query(F.data.startswith("delete:"))
 async def delete(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
