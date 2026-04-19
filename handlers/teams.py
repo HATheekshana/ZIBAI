@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-
+from aiogram.types import BufferedInputFile 
 from database.mongo import users_col
 from services.get_enkadata import get_enkadata
 from services.team_card import team_card   # IMPORTANT
@@ -223,10 +223,11 @@ async def view(callback: types.CallbackQuery):
 
 
 
+# Ensure this is imported
+
 @router_team.callback_query(F.data.startswith("show:"))
 async def show_team(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
-
     user = await users_col.find_one({"user_id": str(callback.from_user.id)})
     teams = user.get("teams", [])
 
@@ -236,12 +237,17 @@ async def show_team(callback: types.CallbackQuery):
     team = teams[idx]
     uid = str(user["genshin_uid"])
 
-    img = await team_card(uid, team["chars"])
+    # This returns your BytesIO object
+    img_buffer = await team_card(uid, team["chars"])
 
-    if img:
-        await callback.message.answer_photo(img, caption=f"Team {idx+1}")
+    if img_buffer:
+        # WRAP IT HERE: This is what aiogram 3.x expects
+        photo = BufferedInputFile(img_buffer.getvalue(), filename=f"team_{idx}.png")
+        
+        await callback.message.answer_photo(photo, caption=f"✨ Team {idx+1}")
+        await callback.answer()
     else:
-        await callback.answer("Failed to generate team card", show_alert=True)
+        await callback.answer("❌ Failed to generate team card", show_alert=True)
 
 @router_team.callback_query(F.data.startswith("delete:"))
 async def delete(callback: types.CallbackQuery):
