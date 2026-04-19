@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from database.mongo import users_col
-from services.get_enkadata import get_enkadata
+from services.get_genshindata import get_enkadata
 
 router_team = Router()
 
@@ -17,9 +17,9 @@ class TeamBuilder(StatesGroup):
 
 
 # =========================
-# ✅ Ensure user exists
+# Ensure user exists
 # =========================
-async def ensure_user(user_id: int):
+async def ensure_user(user_id: str):
     user = await users_col.find_one({"user_id": user_id})
 
     if not user:
@@ -29,7 +29,6 @@ async def ensure_user(user_id: int):
         })
         return {"user_id": user_id, "teams": []}
 
-    # If user exists but no teams field
     if "teams" not in user:
         await users_col.update_one(
             {"user_id": user_id},
@@ -41,14 +40,35 @@ async def ensure_user(user_id: int):
 
 
 # =========================
-# Helpers
+# Get showcase from Enka (YOUR LOGIC)
 # =========================
-async def get_showcase_chars(uid):
-    data = await get_enkadata(uid)
-    return [c["avatarId"] for c in data.get("avatarInfoList", [])]
+async def get_showcase_chars(message: types.Message):
+    user_data = await users_col.find_one({"user_id": str(message.from_user.id)})
+
+    if not user_data or "genshin_uid" not in user_data:
+        return None, "Please /login <uid> first."
+
+    db_uid = str(user_data["genshin_uid"]).strip()
+
+    try:
+        user_info_enka = await get_enkadata(db_uid)
+        showcase_items = user_info_enka.get("showAvatarInfoList", [])
+    except Exception as e:
+        print(f"Enka Fetch Error: {e}")
+        return None, "Failed to reach Enka.network. Try again later."
+
+    if not showcase_items:
+        return None, "No characters found!\nEnable 'Show Character Details' in your profile."
+
+    char_ids = [c["avatarId"] for c in showcase_items]
+
+    return char_ids, None
 
 
-async def send_char_select(message: types.Message, chars, selected):
+# =========================
+# Character selection UI
+# =========================
+async def send_char_select(message, chars, selected):
     kb = InlineKeyboardBuilder()
 
     for cid in chars:
@@ -67,11 +87,11 @@ async def send_char_select(message: types.Message, chars, selected):
 
 
 # =========================
-# /teams command
+# /teams
 # =========================
 @router_team.message(Command("teams"))
 async def teams_menu(message: types.Message):
-    user = await ensure_user(message.from_user.id)
+    user = await ensure_user(str(message.from_user.id))
     teams = user.get("teams", [])
 
     kb = InlineKeyboardBuilder()
@@ -96,12 +116,10 @@ async def teams_menu(message: types.Message):
 # =========================
 @router_team.callback_query(F.data == "team_add")
 async def team_add(callback: types.CallbackQuery, state: FSMContext):
-    uid = callback.from_user.id
+    chars, error = await get_showcase_chars(callback.message)
 
-    chars = await get_showcase_chars(uid)
-
-    if not chars:
-        await callback.answer("No showcase characters found!", show_alert=True)
+    if error:
+        await callback.message.edit_text(error)
         return
 
     await state.set_state(TeamBuilder.selecting)
@@ -130,7 +148,7 @@ async def pick_char(callback: types.CallbackQuery, state: FSMContext):
 
     await state.update_data(selected=selected)
 
-    chars = await get_showcase_chars(callback.from_user.id)
+    chars, _ = await get_showcase_chars(callback.message)
     await send_char_select(callback.message, chars, selected)
 
 
@@ -147,7 +165,7 @@ async def remove_char(callback: types.CallbackQuery, state: FSMContext):
 
     await state.update_data(selected=selected)
 
-    chars = await get_showcase_chars(callback.from_user.id)
+    chars, _ = await get_showcase_chars(callback.message)
     await send_char_select(callback.message, chars, selected)
 
 
@@ -163,7 +181,7 @@ async def team_done(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Pick at least 1 character!", show_alert=True)
         return
 
-    user_id = callback.from_user.id
+    user_id = str(callback.from_user.id)
 
     await users_col.update_one(
         {"user_id": user_id},
@@ -180,7 +198,7 @@ async def team_done(callback: types.CallbackQuery, state: FSMContext):
 # =========================
 @router_team.callback_query(F.data.startswith("team_view:"))
 async def team_view(callback: types.CallbackQuery):
-    user = await ensure_user(callback.from_user.id)
+    user = await ensure_user(str(callback.from_user.id))
 
     index = int(callback.data.split(":")[1])
     teams = user.get("teams", [])
@@ -203,6 +221,30 @@ async def team_view(callback: types.CallbackQuery):
     )
 
 
+'''
+@router_team.callback_query(F.data.startswith("team_show:"))
+async def team_show(callback: types.CallbackQuery):
+    from services.team_card import team_card
+
+    user = await users_col.find_one({"user_id": str(callback.from_user.id)})
+
+    if not user or "genshin_uid" not in user:
+        await callback.answer("Please /login first", show_alert=True)
+        return
+
+    index = int(callback.data.split(":")[1])
+    team = user["teams"][index]
+
+    uid = str(user["genshin_uid"])
+
+    img = await team_card(uid, team["chars"])
+
+    if img:
+        await callback.message.answer_photo(img)
+    else:
+        await callback.answer("Failed to generate image", show_alert=True)
+'''
+
 # =========================
 # Delete team
 # =========================
@@ -211,12 +253,12 @@ async def team_delete(callback: types.CallbackQuery):
     index = int(callback.data.split(":")[1])
 
     await users_col.update_one(
-        {"user_id": callback.from_user.id},
+        {"user_id": str(callback.from_user.id)},
         {"$unset": {f"teams.{index}": 1}}
     )
 
     await users_col.update_one(
-        {"user_id": callback.from_user.id},
+        {"user_id": str(callback.from_user.id)},
         {"$pull": {"teams": None}}
     )
 
@@ -228,7 +270,7 @@ async def team_delete(callback: types.CallbackQuery):
 # =========================
 @router_team.callback_query(F.data == "teams_back")
 async def teams_back(callback: types.CallbackQuery):
-    user = await ensure_user(callback.from_user.id)
+    user = await ensure_user(str(callback.from_user.id))
     teams = user.get("teams", [])
 
     kb = InlineKeyboardBuilder()
