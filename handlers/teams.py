@@ -7,7 +7,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 from database.mongo import users_col
 from services.get_enkadata import get_enkadata
-#from services.team_card import team_card   # IMPORTANT
+from services.team_card import team_card   # IMPORTANT
 
 router_team = Router()
 
@@ -111,7 +111,7 @@ async def teams_menu(message: types.Message):
 
     text = "Your Teams:" if teams else "No teams yet. Create one ➕"
 
-    await message.answer(text, reply_markup=kb.as_markup())
+    await message.reply(text, reply_markup=kb.as_markup())
 
 
 # =========================
@@ -205,6 +205,11 @@ async def view(callback: types.CallbackQuery):
 
     team = teams[idx]
 
+    char_names = [
+        CHARACTER_MAP.get(str(cid), {}).get("name", str(cid))
+        for cid in team["chars"]
+    ]
+
     kb = InlineKeyboardBuilder()
     kb.button(text="📊 Show Team", callback_data=f"show:{idx}")
     kb.button(text="🗑 Delete", callback_data=f"delete:{idx}")
@@ -212,12 +217,12 @@ async def view(callback: types.CallbackQuery):
     kb.adjust(1)
 
     await callback.message.edit_text(
-        f"Team {idx+1}\nChars: {team['chars']}",
+        f"🏷 Team {idx+1}\n\n👥 Characters:\n" + "\n".join(char_names),
         reply_markup=kb.as_markup()
     )
 
 
-'''
+
 @router_team.callback_query(F.data.startswith("show:"))
 async def show_team(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
@@ -238,10 +243,6 @@ async def show_team(callback: types.CallbackQuery):
     else:
         await callback.answer("Failed to generate team card", show_alert=True)
 
-'''
-# =========================
-# DELETE TEAM
-# =========================
 @router_team.callback_query(F.data.startswith("delete:"))
 async def delete(callback: types.CallbackQuery):
     idx = int(callback.data.split(":")[1])
