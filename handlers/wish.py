@@ -642,8 +642,16 @@ async def daily_wish(message: types.Message):
         f"{bonus_msg}",
         parse_mode="HTML"
     )
+
+
 @router.message(Command("start"))
 async def start_cmd(message: types.Message):
+
+    # 🚫 Block in groups
+    if message.chat.type != "private":
+        return await message.reply("⚠️ Please use this command in private chat.")
+
+    # ✅ Save user
     await users_col.update_one(
         {"user_id": str(message.from_user.id)},
         {
@@ -655,6 +663,7 @@ async def start_cmd(message: types.Message):
         upsert=True
     )
 
+    # 📝 Message
     text = (
         f"<b>Welcome, {message.from_user.first_name}!</b>\n"
         "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n"
@@ -677,7 +686,24 @@ async def start_cmd(message: types.Message):
 
         "<b>Daily Rewards</b>\n"
         "• /daily — Claim your daily wishes\n\n"
-
     )
 
-    await message.answer(text, parse_mode="HTML")
+    # 🔘 Buttons
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💬 Support Group",
+                    url="https://t.me/zibai_support_group"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📢 Support Channel",
+                    url="https://t.me/zibai_support"
+                )
+            ]
+        ]
+    )
+
+    await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
