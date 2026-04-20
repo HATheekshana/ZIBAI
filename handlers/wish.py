@@ -643,3 +643,42 @@ async def daily_wish(message: types.Message):
         f"{bonus_msg}",
         parse_mode="HTML"
     )
+@router.message(Command("start"))
+async def start_cmd(message: types.Message):
+    await users_col.update_one(
+        {"user_id": str(message.from_user.id)},
+        {
+            "$set": {
+                "started": True,
+                "blocked": False
+            }
+        },
+        upsert=True
+    )
+
+    text = (
+        f"<b>Welcome, {message.from_user.first_name}!</b>\n"
+        "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯\n\n"
+
+        "<b>Wishing System</b>\n"
+        "• /wish — Single wish\n"
+        "• /wish10 — 10x wish\n"
+        "• /gamble — Double your wishes 🎲\n"
+        "• /collection — View your characters\n"
+        "• /stats — Your stats\n"
+        "• /share — Send wishes to others\n\n"
+
+        "<b>Cards & Teams</b>\n"
+        "• /characters — Character card\n"
+        "• /team — Team card\n"
+        "• /comparechar — Compare players\n\n"
+
+        "<b>Game Info</b>\n"
+        "• /abyssinfo — Spiral Abyss info\n\n"
+
+        "<b>Daily Rewards</b>\n"
+        "• /daily — Claim your daily wishes\n\n"
+
+    )
+
+    await message.answer(text, parse_mode="HTML")
