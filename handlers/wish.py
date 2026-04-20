@@ -8,14 +8,13 @@ import datetime
 from datetime import timedelta,datetime
 from services.image_service import combine_images
 from database.mongo import users_col
-
+from config import CURRENT_RATE_UP_KEY, CURRENT_RATE_UP_NAME
 # IMPORT YOUR DATA
 from data.characters import characters5, characters4, weapons3, rare
 
 router = Router()
 ITEMS_PER_PAGE = 10
-CURRENT_RATE_UP_KEY = "raiden-shogun"
-CURRENT_RATE_UP_NAME = characters5.get(CURRENT_RATE_UP_KEY, "Raiden Shogun")
+
 def get_rarity(name):
     clean_name = name.strip()
     if clean_name in characters5.values():
