@@ -1,6 +1,5 @@
 import os
 import genshin
-from dotenv import load_dotenv
 from aiogram import Router, types ,F
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import FSInputFile, InputMediaPhoto
@@ -8,18 +7,13 @@ from aiogram.types import FSInputFile, InputMediaPhoto
 
 from aiogram.filters import Command
 
-from config import ADMIN_ID
+from config import ADMIN_ID ,cookies
 from services.banner import get_banner_text, CURRENT_IMAGES, NEXT_IMAGES
 from database.mongo import users_col
-from dotenv import load_dotenv
 
 router5 = Router()
-load_dotenv()
 
-cookies = {
-    "ltuid_v2": os.getenv("LTUID_V2"),
-    "ltoken_v2": os.getenv("LTOKEN_V2")
-}
+
 
 # ✅ Global client (better than creating every time)
 client = genshin.Client(cookies, region=genshin.Region.OVERSEAS)
