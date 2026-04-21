@@ -3,7 +3,7 @@ import asyncio
 import os
 
 from aiogram import Router, types, F
-from aiogram.types import InputMediaPhoto, FSInputFile
+from aiogram.types import FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database.mongo import users_col

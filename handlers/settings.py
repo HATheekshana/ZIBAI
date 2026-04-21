@@ -9,12 +9,7 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.mongo import users_col
 from services.get_enkadata import get_enkadata
-from dotenv import load_dotenv
-
-load_dotenv()
-ADMIN_VAL = os.getenv("ADMIN_ID")
-
-ADMIN_ID = int(ADMIN_VAL)
+from config import ADMIN_ID
 router3 = Router()
 try:
     with open("assets/json/char.json", "r", encoding="utf-8") as f:

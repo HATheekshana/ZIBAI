@@ -1,20 +1,18 @@
 import os
 import genshin
 from dotenv import load_dotenv
+from aiogram import Router, types ,F
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import FSInputFile, InputMediaPhoto
 
-from aiogram import Router, types
+
 from aiogram.filters import Command
 
+from config import ADMIN_ID
+from services.banner import get_banner_text, CURRENT_IMAGES, NEXT_IMAGES
 from database.mongo import users_col
 from dotenv import load_dotenv
 
-load_dotenv()
-ADMIN_VAL = os.getenv("ADMIN_ID")
-
-ADMIN_ID = int(ADMIN_VAL)
-# =========================
-# 🔧 SETUP
-# =========================
 router5 = Router()
 load_dotenv()
 
@@ -139,3 +137,47 @@ async def group_info(message: types.Message, bot: Bot):
 
     except Exception as e:
         await message.reply(f"❌ Failed to fetch group info.\nError: {e}")
+def get_banner_keyboard(mode="current", char_index=0):
+    builder = InlineKeyboardBuilder()
+
+    next_char = 1 if char_index == 0 else 0
+    char_label = "View 2nd Character" if char_index == 0 else "View 1st Character"
+    builder.row(types.InlineKeyboardButton(text=char_label, callback_data=f"swap:{mode}:{next_char}"))
+
+    other_mode = "next" if mode == "current" else "current"
+    mode_label = "Upcoming Banners" if mode == "current" else "Current Banners"
+    builder.row(types.InlineKeyboardButton(text=mode_label, callback_data=f"swap:{other_mode}:0"))
+
+    return builder.as_markup()
+
+@router5.message(Command("banner"))
+async def cmd_banner(message: types.Message):
+    if not os.path.exists(CURRENT_IMAGES[0]):
+        return await message.reply("❌ Banner image not found on server.")
+
+    await message.reply_photo(
+        photo=FSInputFile(CURRENT_IMAGES[0]),
+        caption=get_banner_text("current"),
+        reply_markup=get_banner_keyboard("current", 0),
+        parse_mode="HTML"
+    )
+
+@router5.callback_query(F.data.startswith("swap:"))
+async def handle_banner_swap(callback: types.CallbackQuery):
+    _, mode, index = callback.data.split(":")
+    index = int(index)
+
+    image_list = CURRENT_IMAGES if mode == "current" else NEXT_IMAGES
+
+    if not os.path.exists(image_list[index]):
+        return await callback.answer("❌ Image file missing!", show_alert=True)
+
+    await callback.message.edit_media(
+        media=InputMediaPhoto(
+            media=FSInputFile(image_list[index]),
+            caption=get_banner_text(mode),
+            parse_mode="HTML"
+        ),
+        reply_markup=get_banner_keyboard(mode, index)
+    )
+    await callback.answer()

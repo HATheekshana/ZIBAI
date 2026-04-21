@@ -4,12 +4,8 @@ import asyncio
 import logging
 from aiogram.filters import Command
 from database.mongo import users_col ,groups_col
-from dotenv import load_dotenv
+from config import ADMIN_ID
 
-load_dotenv()
-ADMIN_VAL = os.getenv("ADMIN_ID")
-
-ADMIN_ID = int(ADMIN_VAL)
 router_bc = Router()
 @router_bc.message(Command("broadcastg"))
 async def broadcast_groups_smart(message: types.Message, bot: Bot):
