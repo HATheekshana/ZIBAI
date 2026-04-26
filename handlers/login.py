@@ -20,7 +20,7 @@ async def fetch_enka_data(uid: str):
                 return await response.json()
             return None
 
-# ---------------- ENSURE USER ----------------
+# ---------------- ENSURE USER + MIGRATION ----------------
 async def ensure_user(user_id: str):
     user = await users_col.find_one({"user_id": user_id})
 
@@ -34,12 +34,19 @@ async def ensure_user(user_id: str):
 
     update = {}
 
-    # old migration support (if exists)
+    if "genshin_uids" not in user:
+        update["genshin_uids"] = []
+
     if "genshin_uid" not in user:
         update["genshin_uid"] = None
 
-    if "genshin_uids" not in user:
-        update["genshin_uids"] = []
+    # 🔥 migrate old system → list system
+    if user.get("genshin_uid"):
+        old_uid = user["genshin_uid"]
+
+        if old_uid not in user.get("genshin_uids", []):
+            update["genshin_uids"] = user.get("genshin_uids", [])
+            update["genshin_uids"].append(old_uid)
 
     if update:
         await users_col.update_one(
@@ -82,12 +89,24 @@ async def switch_menu(message: types.Message):
     await ensure_user(user_id)
 
     user = await users_col.find_one({"user_id": user_id})
+
     uids = user.get("genshin_uids", [])
+
+    # 🔥 include active uid fallback safely
+    active = user.get("genshin_uid")
+
+    if active and active not in uids:
+        uids.append(active)
+
+        await users_col.update_one(
+            {"user_id": user_id},
+            {"$addToSet": {"genshin_uids": active}}
+        )
 
     menu_owners[message.chat.id] = message.from_user.id
 
     await message.answer(
-        "🔄 <b>Select a UID:</b>",
+        "<b>Select a UID:</b>",
         reply_markup=build_uid_menu(uids),
         parse_mode="HTML"
     )
@@ -96,14 +115,14 @@ async def switch_menu(message: types.Message):
 @router4.callback_query(F.data.startswith("uid_select"))
 async def select_uid(callback: types.CallbackQuery):
     if menu_owners.get(callback.message.chat.id) != callback.from_user.id:
-        return await callback.answer("❌ Not your menu!", show_alert=True)
+        return await callback.answer("Not your menu!", show_alert=True)
 
     uid = int(callback.data.split(":")[1])
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🔁 Switch", callback_data=f"uid_switch:{uid}"),
-            InlineKeyboardButton(text="❌ Remove", callback_data=f"uid_remove:{uid}")
+            InlineKeyboardButton(text="Switch", callback_data=f"uid_switch:{uid}"),
+            InlineKeyboardButton(text="Remove", callback_data=f"uid_remove:{uid}")
         ]
     ])
 
@@ -127,7 +146,7 @@ async def switch_uid(callback: types.CallbackQuery):
         {"$set": {"genshin_uid": uid}}
     )
 
-    await callback.answer("✅ Switched!", show_alert=True)
+    await callback.answer("Switched!", show_alert=True)
 
 # ---------------- REMOVE UID ----------------
 @router4.callback_query(F.data.startswith("uid_remove"))
@@ -143,15 +162,15 @@ async def remove_uid(callback: types.CallbackQuery):
         {"$pull": {"genshin_uids": uid}}
     )
 
-    # if removed uid was active → reset
     user = await users_col.find_one({"user_id": user_id})
+
     if user and user.get("genshin_uid") == uid:
         await users_col.update_one(
             {"user_id": user_id},
             {"$set": {"genshin_uid": None}}
         )
 
-    await callback.answer("❌ Removed!", show_alert=True)
+    await callback.answer("Removed!", show_alert=True)
 
 # ---------------- ADD UID ----------------
 @router4.callback_query(F.data == "uid_add")
@@ -162,7 +181,7 @@ async def add_uid(callback: types.CallbackQuery):
     user_inputs[callback.from_user.id] = ""
 
     await callback.message.edit_text(
-        "🔢 Enter UID:\n<code>_</code>",
+        "Enter UID:\n<code>_</code>",
         reply_markup=number_pad(),
         parse_mode="HTML"
     )
@@ -171,7 +190,7 @@ async def add_uid(callback: types.CallbackQuery):
 @router4.callback_query(F.data.startswith("num"))
 async def handle_number(callback: types.CallbackQuery):
     if menu_owners.get(callback.message.chat.id) != callback.from_user.id:
-        return await callback.answer("❌ Not your input!", show_alert=True)
+        return await callback.answer("Not your input!", show_alert=True)
 
     user_id = callback.from_user.id
     data = callback.data
@@ -183,11 +202,11 @@ async def handle_number(callback: types.CallbackQuery):
 
     elif data == "num_done":
         if len(current) < 9:
-            return await callback.answer("❌ UID must be 9 digits", show_alert=True)
+            return await callback.answer("UID must be 9 digits", show_alert=True)
 
         enka = await fetch_enka_data(current)
         if not enka or "playerInfo" not in enka:
-            return await callback.answer("❌ Invalid UID", show_alert=True)
+            return await callback.answer("Invalid UID", show_alert=True)
 
         db_user_id = str(user_id)
         await ensure_user(db_user_id)
@@ -203,7 +222,7 @@ async def handle_number(callback: types.CallbackQuery):
         user_inputs.pop(user_id, None)
 
         return await callback.message.edit_text(
-            f"✅ Added & Switched to <code>{current}</code>",
+            f"Added & Switched to <code>{current}</code>",
             parse_mode="HTML"
         )
 
@@ -215,30 +234,30 @@ async def handle_number(callback: types.CallbackQuery):
     user_inputs[user_id] = current
 
     await callback.message.edit_text(
-        f"🔢 Enter UID:\n<code>{current if current else '_'}</code>",
+        f"Enter UID:\n<code>{current if current else '_'}</code>",
         reply_markup=number_pad(),
         parse_mode="HTML"
     )
 
-# ---------------- LOGIN (UPDATED SYSTEM) ----------------
+# ---------------- LOGIN ----------------
 @router4.message(Command("login"))
 async def login_uid(message: types.Message):
     args = message.text.split()
 
     if len(args) < 2:
-        return await message.answer("❓ Usage: /login <uid>", parse_mode="HTML")
+        return await message.answer("Usage: /login <uid>", parse_mode="HTML")
 
     uid = args[1]
 
     if not uid.isdigit():
-        return await message.answer("❌ UID must be numeric.")
+        return await message.answer("UID must be numeric.")
 
-    status = await message.answer(f"🔍 Checking {uid}...")
+    status = await message.answer(f"Checking {uid}...")
 
     data = await fetch_enka_data(uid)
 
     if not data or "playerInfo" not in data:
-        return await status.edit_text("❌ UID not found or private.")
+        return await status.edit_text("UID not found or private.")
 
     player = data["playerInfo"]
     user_id = str(message.from_user.id)
@@ -254,9 +273,9 @@ async def login_uid(message: types.Message):
     )
 
     await status.edit_text(
-        f"✅ Login Success\n"
+        f"Login Success\n"
         f"UID: <code>{uid}</code>\n"
-        f"👤 {player.get('name')} (AR {player.get('level')})",
+        f"{player.get('name')} (AR {player.get('level')})",
         parse_mode="HTML"
     )
 
@@ -268,11 +287,11 @@ async def logout_uid(message: types.Message):
     user = await users_col.find_one({"user_id": user_id})
 
     if not user or not user.get("genshin_uid"):
-        return await message.answer("ℹ️ Not logged in.")
+        return await message.answer("Not logged in.")
 
     await users_col.update_one(
         {"user_id": user_id},
         {"$set": {"genshin_uid": None}}
     )
 
-    await message.answer("✅ Logged out successfully.", parse_mode="HTML")
+    await message.answer("Logged out successfully.", parse_mode="HTML")
