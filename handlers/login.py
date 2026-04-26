@@ -201,12 +201,18 @@ async def handle_number(callback: types.CallbackQuery):
         current = current[:-1]
 
     elif data == "num_done":
-        if len(current) < 9:
-            return await callback.answer("UID must be 9 digits", show_alert=True)
+
+    # ✅ allow proper UID lengths
+        if len(current) < 8 or len(current) > 10:
+            return await callback.answer("❌ UID must be 8–10 digits", show_alert=True)
+
+        if not current.isdigit():
+            return await callback.answer("❌ UID must be numeric", show_alert=True)
 
         enka = await fetch_enka_data(current)
+
         if not enka or "playerInfo" not in enka:
-            return await callback.answer("Invalid UID", show_alert=True)
+            return await callback.answer("❌ Invalid UID", show_alert=True)
 
         db_user_id = str(user_id)
         await ensure_user(db_user_id)
@@ -222,13 +228,13 @@ async def handle_number(callback: types.CallbackQuery):
         user_inputs.pop(user_id, None)
 
         return await callback.message.edit_text(
-            f"Added & Switched to <code>{current}</code>",
+            f"✅ Added & Switched to <code>{current}</code>",
             parse_mode="HTML"
         )
 
     else:
         num = data.split(":")[1]
-        if len(current) < 9:
+        if len(current) < 10:
             current += num
 
     user_inputs[user_id] = current
