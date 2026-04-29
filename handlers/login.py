@@ -301,3 +301,18 @@ async def logout_uid(message: types.Message):
     )
 
     await message.answer("Logged out successfully.", parse_mode="HTML")
+@router4.message(Command("myuid"))
+async def my_uid(message: types.Message):
+    user_id = str(message.from_user.id)
+
+    user = await users_col.find_one({"user_id": user_id})
+
+    if not user or not user.get("genshin_uid"):
+        return await message.answer("❌ No active UID selected.")
+
+    uid = user["genshin_uid"]
+
+    await message.answer(
+        f"🎮 <b>Your Active UID:</b>\n<code>{uid}</code>",
+        parse_mode="HTML"
+    )
