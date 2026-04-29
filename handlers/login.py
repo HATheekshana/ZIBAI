@@ -301,7 +301,7 @@ async def logout_uid(message: types.Message):
     )
 
     await message.answer("Logged out successfully.", parse_mode="HTML")
-@router4.message(Command("myuid"))
+@router4.message(Command("muid"))
 async def my_uid(message: types.Message):
     user_id = str(message.from_user.id)
 
