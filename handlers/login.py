@@ -313,6 +313,6 @@ async def my_uid(message: types.Message):
     uid = user["genshin_uid"]
 
     await message.answer(
-        f"🎮 <b>Your Active UID:</b>\n<code>{uid}</code>",
+        f"<b>Your Active UID:</b> <code>{uid}</code>",
         parse_mode="HTML"
     )
