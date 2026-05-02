@@ -118,7 +118,7 @@ async def wish_cmd_10(message: types.Message):
             count4 = 0
 
         # ⭐ rare
-        elif roll <= 100:
+        elif roll <= 10:
             is_rare = True
             count4 += 1
 
