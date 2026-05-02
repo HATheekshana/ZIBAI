@@ -144,6 +144,7 @@ def get_banner_keyboard(mode="current", char_index=0):
 
     return builder.as_markup()
 
+
 @router5.message(Command("banner"))
 async def cmd_banner(message: types.Message):
     if not os.path.exists(CURRENT_IMAGES[0]):
@@ -156,22 +157,36 @@ async def cmd_banner(message: types.Message):
         parse_mode="HTML"
     )
 
+
 @router5.callback_query(F.data.startswith("swap:"))
 async def handle_banner_swap(callback: types.CallbackQuery):
+    # ✅ FIX 1: answer first (prevents "query too old")
+    try:
+        await callback.answer()
+    except:
+        pass
+
     _, mode, index = callback.data.split(":")
     index = int(index)
 
     image_list = CURRENT_IMAGES if mode == "current" else NEXT_IMAGES
 
     if not os.path.exists(image_list[index]):
-        return await callback.answer("❌ Image file missing!", show_alert=True)
+        try:
+            await callback.answer("❌ Image file missing!", show_alert=True)
+        except:
+            pass
+        return
 
-    await callback.message.edit_media(
-        media=InputMediaPhoto(
-            media=FSInputFile(image_list[index]),
-            caption=get_banner_text(mode),
-            parse_mode="HTML"
-        ),
-        reply_markup=get_banner_keyboard(mode, index)
-    )
-    await callback.answer()
+    # ✅ FIX 2: handle edit errors (prevents "canceled by new editMessageMedia request")
+    try:
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=FSInputFile(image_list[index]),
+                caption=get_banner_text(mode),
+                parse_mode="HTML"
+            ),
+            reply_markup=get_banner_keyboard(mode, index)
+        )
+    except:
+        pass
