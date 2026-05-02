@@ -1,15 +1,15 @@
 from datetime import datetime, timezone
 
 CURRENT_END = {
-    "Asia": datetime(2026, 5, 18, 10, 0, tzinfo=timezone.utc),
-    "EU": datetime(2026, 5, 18, 17, 0, tzinfo=timezone.utc),
-    "NA": datetime(2026, 5, 18, 23, 0, tzinfo=timezone.utc),
+    "Asia": datetime(2026, 5, 19, 13, 0, tzinfo=timezone.utc),
+    "EU": datetime(2026, 5, 19, 20, 0, tzinfo=timezone.utc),
+    "NA": datetime(2026, 5, 20, 2, 0, tzinfo=timezone.utc),
 }
 
 NEXT_START = {
-    "Asia": datetime(2026, 5, 18, 10, 0, tzinfo=timezone.utc),
-    "EU": datetime(2026, 5, 18, 17, 0, tzinfo=timezone.utc),
-    "NA": datetime(2026, 5, 18, 23, 0, tzinfo=timezone.utc),
+    "Asia": datetime(2026, 5, 20, 0, 0, tzinfo=timezone.utc),
+    "EU": datetime(2026, 5, 20, 5, 0, tzinfo=timezone.utc),
+    "NA": datetime(2026, 5, 19, 23, 0, tzinfo=timezone.utc),
 }
 
 CURRENT_IMAGES = ["assets/images/banners/char1.png", "assets/images/banners/char2.png"]
