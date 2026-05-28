@@ -845,11 +845,29 @@
         "rarity": 5,
         "element": "Anemo"
     },
+    "10000129": {
+        "name": "Lohen",
+        "avataricon": "UI_AvatarIcon_Lohen",
+        "rarity": 5,
+        "element": "Cryo"
+    },
     "10000130": {
         "name": "Linnea",
         "avataricon": "UI_AvatarIcon_Linnea",
         "rarity": 5,
         "element": "Geo"
+    },
+    "10000131": {
+        "name": "Nicole",
+        "avataricon": "UI_AvatarIcon_Nicole",
+        "rarity": 5,
+        "element": "Anemo"
+    },
+    "10000132": {
+        "name": "Prune",
+        "avataricon": "UI_AvatarIcon_Prune",
+        "rarity": 5,
+        "element": "Anemo"
     }
 
 }

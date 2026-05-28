@@ -1,5 +1,6 @@
 aiogram
 motor
 aiohttp
+feedparser
 pillow
 python-dotenv

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from handlers.settings import router3
 from handlers.login import router4
 from aiogram import Bot, Dispatcher
@@ -13,6 +14,7 @@ from handlers.comparechar import router6
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pytz import timezone
 from handlers.teams import router_team
+from news_poller import news_worker
 
 
 bot = Bot(token=BOT_TOKEN)
@@ -28,6 +30,7 @@ dp.include_router(router_bc)
 dp.include_router(cookie)
 
 async def main():
+    logging.basicConfig(level=logging.INFO)
     print("Bot is live on EC2...")
 
     # ✅ Setup scheduler BEFORE polling
@@ -42,6 +45,8 @@ async def main():
     )
 
     scheduler.start()
+
+    asyncio.create_task(news_worker(bot))
 
     await dp.start_polling(bot)
 
