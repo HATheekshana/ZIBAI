@@ -216,6 +216,15 @@ async def get_twitter_updates() -> List[Dict[str, Any]]:
     return updates
 
 
+async def fetch_rss() -> Any:
+    timeout = aiohttp.ClientTimeout(total=20)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        async with session.get(RSS_URL) as resp:
+            resp.raise_for_status()
+            text = await resp.text()
+    return feedparser.parse(text)
+
+
 async def news_worker(bot: Bot) -> None:
     state = load_state()
     if state:

@@ -6,6 +6,22 @@ from aiogram.filters import Command
 from database.mongo import users_col ,groups_col
 from config import ADMIN_ID
 
+
+def is_dead_chat_error(exc: Exception) -> bool:
+    reason = str(exc).lower()
+    return any(
+        token in reason
+        for token in [
+            "bot was blocked",
+            "chat not found",
+            "user is deactivated",
+            "forbidden",
+            "bot was kicked",
+            "not in chat",
+            "group is deactivated",
+        ]
+    )
+
 router_bc = Router()
 @router_bc.message(Command("broadcastg"))
 async def broadcast_groups_smart(message: types.Message, bot: Bot):
@@ -65,6 +81,9 @@ async def broadcast_groups_smart(message: types.Message, bot: Bot):
 
         except Exception as e:
             logging.error(f"Group {group.get('chat_id')} broadcast error: {e}")
+            if is_dead_chat_error(e):
+                await groups_col.delete_one({"_id": group["_id"]})
+                logging.info("Removed stale group %s from groups_col", group.get("chat_id"))
             fail += 1
 
     await status_msg.edit_text(
@@ -117,6 +136,9 @@ async def broadcast_smart(message: types.Message, bot: Bot):
 
         except Exception as e:
             logging.error(f"Failed to send to {user.get('user_id')}: {e}")
+            if is_dead_chat_error(e):
+                await users_col.delete_one({"_id": user["_id"]})
+                logging.info("Removed stale user %s from users_col", user.get("user_id"))
             fail += 1
 
     await status_msg.edit_text(
